@@ -8,27 +8,27 @@ let token;
 
 describe('PILL4U API - Testy Integracyjne', () => {
 
-    // Scenariusz 1: Rejestracja
+    // Scenariusz 1: Rejestracja (ZAKTUALIZOWANE O IMIĘ)
     it('1. Powinien pomyślnie zarejestrować nowego użytkownika', async () => {
         const response = await request(app)
             .post('/api/register')
-            .send({ email: testEmail, password: testPassword });
+            .send({ email: testEmail, password: testPassword, name: 'Testowy Przemek' });
 
         expect(response.statusCode).toBe(201);
         expect(response.body).toHaveProperty('message', 'Rejestracja zakończona sukcesem!');
     });
 
-    // Scenariusz 2: Zabezpieczenie przed duplikatem
+    // Scenariusz 2: Zabezpieczenie przed duplikatem (ZAKTUALIZOWANE O IMIĘ)
     it('2. Nie powinien pozwolić na rejestrację z tym samym adresem email', async () => {
         const response = await request(app)
             .post('/api/register')
-            .send({ email: testEmail, password: testPassword });
+            .send({ email: testEmail, password: testPassword, name: 'Testowy Przemek' });
 
         expect(response.statusCode).toBe(409);
         expect(response.body).toHaveProperty('error', 'Użytkownik o tym emailu już istnieje.');
     });
 
-    // Scenariusz 3: Logowanie
+    // Scenariusz 3: Logowanie (TUTAJ BEZ ZMIAN, DO LOGOWANIA IMIĘ NIE JEST POTRZEBNE)
     it('3. Powinien zalogować użytkownika i zwrócić token JWT', async () => {
         const response = await request(app)
             .post('/api/login')
@@ -37,7 +37,6 @@ describe('PILL4U API - Testy Integracyjne', () => {
         expect(response.statusCode).toBe(200);
         expect(response.body).toHaveProperty('token');
 
-        // Zapisujemy token do kolejnych testów
         token = response.body.token;
     });
 
