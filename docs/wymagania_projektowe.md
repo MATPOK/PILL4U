@@ -30,3 +30,11 @@ Aplikacja PILL4U rozwiązuje problem regularnego przyjmowania leków, co z defin
 * [ ] **T03:** O godzinie przypisanej do leku, telefon odtwarza wibrację/dźwięk i wyświetla powiadomienie push.
 * [ ] **T04:** Po kliknięciu "Wzięty", status zapisuje się poprawnie, co aktualizuje wykres w "Historii".
 * [ ] **T05:** Przełączenie telefonu w tryb samolotowy (brak internetu) nie blokuje wyświetlania listy leków na dziś.
+
+## 5. Makiety interfejsu (UI Mockups)
+![Logowanie](Login.png)
+![Rejestracja](Rejestracja.png)
+![Dashboard](Home.png)
+![Dodawanie Leku](DodawanieLeku.png)
+![Historia](Historia.png)
+![Profil](Profil.png)
