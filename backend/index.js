@@ -1,3 +1,4 @@
+const path = require('path');
 require('dotenv').config();
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
@@ -131,6 +132,10 @@ app.post('/api/login', (req, res) => {
 
         res.json({ message: 'Zalogowano pomyślnie!', token });
     });
+});
+
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'privacy.html'));
 });
 
 if (require.main === module) {
