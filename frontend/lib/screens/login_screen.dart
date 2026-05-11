@@ -8,6 +8,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  bool isLogin = true;
+  bool acceptTerms = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,11 +26,24 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text('Twój osobisty asystent lekowy', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.black54)),
               const SizedBox(height: 48),
 
+              if (!isLogin) ...[
+                const Text('Imię', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Wpisz swoje imię',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               const Text('Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
               const SizedBox(height: 8),
               TextField(
                 decoration: InputDecoration(
-                  hintText: 'twoj@email.pl',
+                  hintText: isLogin ? 'twoj@email.pl' : 'adres@email.com',
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -38,13 +54,39 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               TextField(
                 decoration: InputDecoration(
-                  hintText: '••••••••',
+                  hintText: isLogin ? '••••••••' : 'Min. 8 znaków',
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 obscureText: true,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              if (!isLogin) ...[
+                const Text('Potwierdź hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Powtórz hasło',
+                    prefixIcon: const Icon(Icons.lock_reset_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: acceptTerms,
+                      onChanged: (val) => setState(() => acceptTerms = val ?? false),
+                    ),
+                    const Expanded(
+                      child: Text('Akceptuję politykę prywatności oraz regulamin', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               ElevatedButton(
                 onPressed: () {},
@@ -54,7 +96,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Zaloguj się', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(isLogin ? 'Zaloguj się' : 'Zarejestruj się', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => setState(() => isLogin = !isLogin),
+                child: Text(
+                  isLogin ? 'Nie masz konta? Zarejestruj się' : 'Masz już konto? Zaloguj się',
+                  style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
