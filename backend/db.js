@@ -14,6 +14,15 @@ db.serialize(() => {
         email TEXT UNIQUE,
         password TEXT
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS medications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        name TEXT,
+        dosage TEXT,
+        time TEXT,
+        days TEXT,
+        FOREIGN KEY (userId) REFERENCES users(id)
+    )`);
 });
 
 module.exports = db;
