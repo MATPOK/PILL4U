@@ -11,7 +11,7 @@ PILL4U to projekt studencki realizowany w ramach zajęć z programowania. Aplika
 * **Baza danych:** SQLite
 * **Dokumentacja:** Markdown
 
-## 👥 Zespół (Grupa X)
+## 👥 Zespół
 * **Mateusz Pokrywka (Product Lead):** UX/UI, Dokumentacja, Marketing
 * **Maciej Pereślucha (Frontend Developer):** Logika aplikacji, Flutter
 * **Przemysław Potoczny (Backend Developer):** API, Baza danych
