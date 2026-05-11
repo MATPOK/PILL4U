@@ -1,0 +1,143 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PILL4U API",
+    "version": "1.0.0",
+    "description": "Dokumentacja API dla aplikacji przypominającej o lekach PILL4U."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Serwer lokalny"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/api/register": {
+      "post": {
+        "summary": "Rejestracja nowego użytkownika",
+        "tags": ["Autoryzacja"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Użytkownik zarejestrowany" },
+          "400": { "description": "Brak danych" },
+          "409": { "description": "Email zajęty" }
+        }
+      }
+    },
+    "/api/login": {
+      "post": {
+        "summary": "Logowanie użytkownika",
+        "tags": ["Autoryzacja"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Zwraca token JWT" },
+          "401": { "description": "Błędne dane" }
+        }
+      }
+    },
+    "/api/medications": {
+      "get": {
+        "summary": "Pobiera leki zalogowanego użytkownika",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Lista leków" },
+          "401": { "description": "Brak tokena" }
+        }
+      },
+      "post": {
+        "summary": "Dodaje nowy lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "dosage": { "type": "string" },
+                  "time": { "type": "string" },
+                  "days": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Lek dodany" }
+        }
+      }
+    },"/api/medications/{id}": {
+      "put": {
+        "summary": "Edytuje istniejący lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "dosage": { "type": "string" },
+                  "time": { "type": "string" },
+                  "days": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Zaktualizowano" } }
+      },
+      "delete": {
+        "summary": "Usuwa lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Usunięto" } }
+      }
+    }
+  }
+}

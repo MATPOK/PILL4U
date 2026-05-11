@@ -1,4 +1,6 @@
 require('dotenv').config();
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
@@ -12,6 +14,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
