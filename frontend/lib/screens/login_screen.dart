@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,19 +13,67 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool isLogin = true;
   bool acceptTerms = false;
-  bool isLoading = false; // Nowy stan ładowania
+  bool isLoading = false;
 
-  // Kontrolery do pobierania tekstu z pól
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
-  void _submit() {
-    // Na razie tylko symulujemy ładowanie - logikę serwera dodamy w kolejnym kroku
+  Future<void> _submit() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wypełnij wszystkie pola!'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     setState(() { isLoading = true; });
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) setState(() { isLoading = false; });
-    });
+
+    final String endpoint = isLogin ? 'login' : 'register';
+    final Uri url = Uri.parse('http://10.0.2.2:3000/api/$endpoint');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': _emailController.text,
+          'password': _passwordController.text,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (isLogin) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_token', responseData['token']);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Zalogowano pomyślnie!'), backgroundColor: Colors.green),
+          );
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Rejestracja udana! Możesz się zalogować.'), backgroundColor: Colors.green),
+          );
+          setState(() { isLogin = true; });
+        }
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Błąd: ${responseData['message'] ?? 'Nieprawidłowe dane'}'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Błąd połączenia z serwerem. Upewnij się, że backend działa!'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() { isLoading = false; });
+    }
   }
 
   @override
@@ -47,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text('Imię', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       const SizedBox(height: 8),
                       TextField(
-                        controller: _nameController, // Podpięty kontroler
+                        controller: _nameController,
                         decoration: InputDecoration(
                           hintText: 'Wpisz swoje imię',
                           prefixIcon: const Icon(Icons.person_outline),
@@ -60,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(height: 8),
                     TextField(
-                      controller: _emailController, // Podpięty kontroler
+                      controller: _emailController,
                       decoration: InputDecoration(
                         hintText: isLogin ? 'twoj@email.pl' : 'adres@email.com',
                         prefixIcon: const Icon(Icons.email_outlined),
@@ -72,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(height: 8),
                     TextField(
-                      controller: _passwordController, // Podpięty kontroler
+                      controller: _passwordController,
                       decoration: InputDecoration(
                         hintText: isLogin ? '••••••••' : 'Min. 8 znaków',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -109,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
 
                     ElevatedButton(
-                      onPressed: isLoading ? null : _submit, // Blokada przycisku podczas ładowania
+                      onPressed: isLoading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF007AFF),
                         foregroundColor: Colors.white,
