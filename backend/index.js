@@ -63,7 +63,7 @@ app.put('/api/medications/:id', authenticateToken, (req, res) => {
     });
 });
 
-// 4. USUWANIE LEKU (DELETE /api/medications/:id)
+// USUWANIE LEKU (DELETE /api/medications/:id)
 app.delete('/api/medications/:id', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM medications WHERE id = ? AND userId = ?';
 
@@ -76,10 +76,10 @@ app.delete('/api/medications/:id', authenticateToken, (req, res) => {
 
 // REJESTRACJA (POST /api/register)
 app.post('/api/register', async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, name } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email i hasło są wymagane!' });
+    if (!email || !password || !name) {
+            return res.status(400).json({ error: 'Email, hasło i imię są wymagane!' });
     }
 
     try {
@@ -87,17 +87,16 @@ app.post('/api/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Zapis do bazy
-        const sql = 'INSERT INTO users (email, password) VALUES (?, ?)';
-        db.run(sql, [email, hashedPassword], function(err) {
-            if (err) {
-                // Unikalny email
-                if (err.message.includes('UNIQUE')) {
-                    return res.status(409).json({ error: 'Użytkownik o tym emailu już istnieje.' });
-                }
-                return res.status(500).json({ error: 'Błąd bazy danych.' });
-            }
-            res.status(201).json({ message: 'Rejestracja zakończona sukcesem!', userId: this.lastID });
-        });
+        const sql = 'INSERT INTO users (email, password, name) VALUES (?, ?, ?)';
+                db.run(sql, [email, hashedPassword, name], function(err) {
+                    if (err) {
+                        if (err.message.includes('UNIQUE')) {
+                            return res.status(409).json({ error: 'Użytkownik o tym emailu już istnieje.' });
+                        }
+                        return res.status(500).json({ error: 'Błąd bazy danych.' });
+                    }
+                    res.status(201).json({ message: 'Rejestracja zakończona sukcesem!', userId: this.lastID });
+                });
     } catch (error) {
         res.status(500).json({ error: 'Wystąpił błąd serwera.' });
     }
@@ -131,6 +130,17 @@ app.post('/api/login', (req, res) => {
         const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
         res.json({ message: 'Zalogowano pomyślnie!', token });
+    });
+});
+
+// PROFIL (GET /api/user/me)
+app.get('/api/user/me', authenticateToken, (req, res) => {
+    const sql = 'SELECT id, email, name FROM users WHERE id = ?';
+    db.get(sql, [req.user.userId], (err, user) => {
+        if (err) return res.status(500).json({ error: 'Błąd bazy danych.' });
+        if (!user) return res.status(404).json({ error: 'Użytkownik nie istnieje.' });
+
+        res.json(user);
     });
 });
 
