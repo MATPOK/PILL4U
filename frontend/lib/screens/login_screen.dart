@@ -10,6 +10,20 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool isLogin = true;
   bool acceptTerms = false;
+  bool isLoading = false; // Nowy stan ładowania
+
+  // Kontrolery do pobierania tekstu z pól
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+
+  void _submit() {
+    // Na razie tylko symulujemy ładowanie - logikę serwera dodamy w kolejnym kroku
+    setState(() { isLoading = true; });
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() { isLoading = false; });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text('Imię', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       const SizedBox(height: 8),
                       TextField(
+                        controller: _nameController, // Podpięty kontroler
                         decoration: InputDecoration(
                           hintText: 'Wpisz swoje imię',
                           prefixIcon: const Icon(Icons.person_outline),
@@ -45,6 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(height: 8),
                     TextField(
+                      controller: _emailController, // Podpięty kontroler
                       decoration: InputDecoration(
                         hintText: isLogin ? 'twoj@email.pl' : 'adres@email.com',
                         prefixIcon: const Icon(Icons.email_outlined),
@@ -56,6 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(height: 8),
                     TextField(
+                      controller: _passwordController, // Podpięty kontroler
                       decoration: InputDecoration(
                         hintText: isLogin ? '••••••••' : 'Min. 8 znaków',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -92,14 +109,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
 
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: isLoading ? null : _submit, // Blokada przycisku podczas ładowania
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF007AFF),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(isLogin ? 'Zaloguj się' : 'Zarejestruj się', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: isLoading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(isLogin ? 'Zaloguj się' : 'Zarejestruj się', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 16),
                     TextButton(
@@ -128,5 +147,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    super.dispose();
   }
 }
