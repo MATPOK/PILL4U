@@ -7,6 +7,10 @@
   },
   "servers": [
     {
+      "url": "https://pill4u.onrender.com",
+      "description": "Serwer produkcyjny (Render)"
+    },
+    {
       "url": "http://localhost:3000",
       "description": "Serwer lokalny"
     }
