@@ -133,7 +133,10 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Uruchomienie serwera
-app.listen(PORT, () => {
-    console.log(`Serwer PILL4U działa na porcie http://localhost:${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Serwer PILL4U działa na porcie http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
