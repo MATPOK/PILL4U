@@ -59,6 +59,11 @@ class DatabaseHelper {
     await batch.commit();
   }
 
+  Future<void> insertSingleMedication(Map<String, dynamic> med) async {
+    final db = await instance.database;
+    await db.insert('medications', med);
+  }
+
   Future<List<Map<String, dynamic>>> getMedications() async {
     final db = await instance.database;
     return await db.query('medications');
