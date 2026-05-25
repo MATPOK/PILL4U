@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({super.key});
@@ -35,8 +38,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     );
   }
 
-  void _submit() {
-    // --- WALIDACJA FORMULARZA ---
+  Future<void> _submit() async {
     final name = _nameController.text.trim();
     final dosage = _dosageController.text.trim();
 
@@ -45,7 +47,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       return;
     }
 
-    // Sprawdza, czy dawka zawiera chociaż jedną cyfrę
     if (!RegExp(r'\d').hasMatch(dosage)) {
       _showError('Dawka musi zawierać konkretną wartość liczbową (np. 1 tabletka, 100mg)!');
       return;
@@ -58,16 +59,48 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
     setState(() { isLoading = true; });
 
-    // Symulacja wysyłania (do podmiany w Commicie 2)
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      if (token == null) throw Exception();
+
+      final String timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+      final List<String> orderedSelectedDays = _days.where((d) => _selectedDays.contains(d)).toList();
+
+      for (String day in orderedSelectedDays) {
+        final response = await http.post(
+          Uri.parse('https://pill4u.onrender.com/api/medications'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'name': name,
+            'dosage': dosage,
+            'time': timeStr,
+            'days': day,
+          }),
+        );
+
+        if (response.statusCode != 201 && response.statusCode != 200) {
+          throw Exception();
+        }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lek dodany pomyślnie!'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+
+    } catch (error) {
+      _showError('Wystąpił błąd podczas dodawania leku do bazy.');
+    } finally {
       if (mounted) {
         setState(() { isLoading = false; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Formularz prawidłowy!'), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context);
       }
-    });
+    }
   }
 
   @override
