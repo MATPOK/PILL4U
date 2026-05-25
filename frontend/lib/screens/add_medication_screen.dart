@@ -72,7 +72,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       final List<int> daysAsInts = orderedSelectedDays.map((d) => dayMapper[d]!).toList();
       final int baseNotificationId = DateTime.now().millisecondsSinceEpoch % 10000;
 
-      // 1. Zlecenie do Androida: Ustaw budzik!
       await NotificationService().scheduleMedicationNotification(
         id: baseNotificationId,
         title: 'Czas na lek: $name!',
@@ -82,7 +81,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         daysOfWeek: daysAsInts,
       );
 
-      // 2. Zapis tylko do SQLite! (Dashboard sam wyśle to do chmury przez Sync Engine)
       for (String day in orderedSelectedDays) {
         await DatabaseHelper.instance.insertSingleMedication({
           'name': name,
@@ -96,7 +94,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lek zapisany!'), backgroundColor: Colors.green),
       );
-      Navigator.pop(context); // Powrót wyzwoli Sync w Dashboardzie
+      Navigator.pop(context);
 
     } catch (error) {
       _showError('Wystąpił błąd krytyczny.');
@@ -116,13 +114,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Dodaj lek', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        title: const Text('Dodaj lek', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -193,11 +191,11 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                         }
                       });
                     },
-                    selectedColor: const Color(0xFFE9FBF0),
+                    selectedColor: theme.brightness == Brightness.light ? const Color(0xFFE9FBF0) : Colors.green.withValues(alpha: 0.3),
                     checkmarkColor: const Color(0xFF34C759),
-                    backgroundColor: Colors.grey.shade100,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     labelStyle: TextStyle(
-                      color: isSelected ? const Color(0xFF34C759) : Colors.black,
+                      color: isSelected ? const Color(0xFF34C759) : theme.colorScheme.onSurface,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   );

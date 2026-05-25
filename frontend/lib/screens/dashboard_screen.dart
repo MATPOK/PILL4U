@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:async'; // Dodałem import Timera
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  Timer? _refreshTimer; // Dodana zmienna do odświeżania czasu
+  Timer? _refreshTimer;
   List<dynamic> medications = [];
   final Set<int> _takenMedIds = {};
   final Set<int> _skippedMedIds = {};
@@ -29,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _fetchData();
 
-    // START ZEGARA: Odświeża ekran co 15 sekund, by pokazać przyciski Weź/Pomiń
     _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
         setState(() {});
@@ -39,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel(); // Zabijamy zegar, by nie obciążać baterii
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -148,7 +147,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await _loadLocalData();
       }
     } catch (e) {
-      // Ignorujemy błędy sieciowe
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -182,8 +180,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final dateString = '${_getFullWeekday(now.weekday)}, ${now.day} ${_getPolishMonth(now.month)}';
 
+    // Dynamiczny motyw
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +200,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Text(
                         'Witaj${userName.isNotEmpty ? ", $userName" : ""}!',
-                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -207,22 +209,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFF007AFF),
-                    child: Text(
-                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                  ),
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Text(
                 'Twój harmonogram na dziś:',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
               ),
             ),
             const SizedBox(height: 16),
@@ -251,8 +245,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   final bool isPending = !isTaken && !isSkipped && (nowInMinutes < medInMinutes);
 
-                  final Color cardBgColor = isTaken ? const Color(0xFFE9FBF0) : isSkipped ? const Color(0xFFFCE8E8) : Colors.white;
-                  final Color iconBgColor = isTaken ? const Color(0xFF34C759) : isSkipped ? const Color(0xFFFF3B30) : const Color(0xFFEBF4FF);
+                  // Kolory kart dostosowane do trybu nocnego
+                  final Color cardBgColor = isTaken
+                      ? (isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFE9FBF0))
+                      : isSkipped
+                      ? (isDark ? Colors.red.withValues(alpha: 0.2) : const Color(0xFFFCE8E8))
+                      : theme.cardColor;
+
+                  final Color iconBgColor = isTaken
+                      ? const Color(0xFF34C759)
+                      : isSkipped
+                      ? const Color(0xFFFF3B30)
+                      : (isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFEBF4FF));
+
                   final Color iconColor = isTaken || isSkipped ? Colors.white : const Color(0xFF007AFF);
 
                   return Container(
@@ -263,7 +268,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                       boxShadow: [
-                        if (!isTaken && !isSkipped)
+                        if (!isTaken && !isSkipped && !isDark)
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 10,
@@ -288,7 +293,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(
                                 med['name'] ?? 'Lek',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -302,10 +307,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           InkWell(
                             onTap: () => _resetStatus(medId),
                             child: Row(
-                              children: const [
-                                Icon(Icons.check_circle, color: Colors.black, size: 20),
-                                SizedBox(width: 4),
-                                Text('Wzięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              children: [
+                                Icon(Icons.check_circle, color: theme.colorScheme.onSurface, size: 20),
+                                const SizedBox(width: 4),
+                                Text('Wzięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
                               ],
                             ),
                           )
@@ -313,10 +318,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           InkWell(
                             onTap: () => _resetStatus(medId),
                             child: Row(
-                              children: const [
-                                Icon(Icons.cancel, color: Colors.black, size: 20),
-                                SizedBox(width: 4),
-                                Text('Pominięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              children: [
+                                Icon(Icons.cancel, color: theme.colorScheme.onSurface, size: 20),
+                                const SizedBox(width: 4),
+                                Text('Pominięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
                               ],
                             ),
                           )
@@ -363,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,

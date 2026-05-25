@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'add_medication_screen.dart';
-import 'login_screen.dart'; // Import potrzebny do powrotu po wylogowaniu
+import 'login_screen.dart';
+import '../helpers/settings_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,17 +14,15 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final int _selectedIndex = 3; // Index 3 oznacza zakładkę "Profil"
+  final int _selectedIndex = 3;
 
   Future<void> _logout() async {
-    // Czyszczenie tokena po wylogowaniu
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
     await prefs.remove('user_name');
 
     if (!mounted) return;
 
-    // pushAndRemoveUntil czyści CAŁĄ historię ekranów, żeby nie dało się wrócić do apki po wylogowaniu
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -33,80 +32,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Dynamicznie pobieramy kolory z obecnego motywu (jasny lub ciemny)
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false, // Ukrywa domyślną strzałkę "wstecz" (bo mamy dolny pasek)
-        title: const Text(
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        title: Text(
           'Profil',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 28),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: colorScheme.onSurface),
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 50,
-                backgroundColor: Color(0xFF007AFF),
-                child: Icon(Icons.person, size: 60, color: Colors.white),
-              ),
-              const SizedBox(height: 40),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    label: const Text('Wyloguj się', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF3B30), // Czerwony kolor dla przycisku wylogowania
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: AnimatedBuilder(
+            animation: SettingsController(), // Odświeża ten ekran gdy klikniemy przełącznik
+            builder: (context, child) {
+              final settings = SettingsController();
+              final isSystemTheme = settings.themeMode == ThemeMode.system;
+              final isDarkTheme = settings.themeMode == ThemeMode.dark;
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: colorScheme.primary,
+                        child: const Icon(Icons.person, size: 60, color: Colors.white),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 48),
+
+                    // SEKCJA: WYGLĄD
+                    Text('Wygląd aplikacji', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                    const SizedBox(height: 16),
+
+                    // Przełącznik: Zależny od systemu
+                    SwitchListTile(
+                      title: const Text('Zgodnie z ustawieniami telefonu', style: TextStyle(fontWeight: FontWeight.w500)),
+                      subtitle: const Text('Aplikacja dostosuje się do motywu systemu'),
+                      value: isSystemTheme,
+                      activeColor: colorScheme.primary,
+                      onChanged: (value) {
+                        settings.updateThemeMode(value ? ThemeMode.system : ThemeMode.light);
+                      },
+                    ),
+
+                    // Przełącznik: Wymuś tryb ciemny (aktywny tylko gdy systemowy jest wyłączony)
+                    SwitchListTile(
+                      title: const Text('Wymuś tryb ciemny', style: TextStyle(fontWeight: FontWeight.w500)),
+                      value: isDarkTheme,
+                      activeColor: colorScheme.primary,
+                      onChanged: isSystemTheme ? null : (value) {
+                        settings.updateThemeMode(value ? ThemeMode.dark : ThemeMode.light);
+                      },
+                    ),
+
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 16.0), child: Divider()),
+
+                    // SEKCJA: CZCIONKA
+                    Text('Rozmiar tekstu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _FontButton(label: 'Mały', scale: 0.85, currentScale: settings.textScale),
+                        _FontButton(label: 'Średni', scale: 1.0, currentScale: settings.textScale),
+                        _FontButton(label: 'Duży', scale: 1.25, currentScale: settings.textScale),
+                      ],
+                    ),
+
+                    const SizedBox(height: 64),
+
+                    // PRZYCISK WYLOGOWANIA
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _logout,
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        label: const Text('Wyloguj się', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF3B30),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+              );
+            }
         ),
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
-        ),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)))),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF007AFF),
+          selectedItemColor: colorScheme.primary,
           unselectedItemColor: Colors.grey,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           onTap: (index) {
             if (index == 0) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
-              );
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
             } else if (index == 1) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoryScreen()),
-              );
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             } else if (index == 2) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AddMedicationScreen()));
             }
-            // index == 3 to Profil, więc nic nie robimy, bo już tu jesteśmy
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today, size: 28), label: 'Dziś'),
@@ -116,6 +159,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Pomocniczy widżet do wyboru rozmiaru czcionki
+class _FontButton extends StatelessWidget {
+  final String label;
+  final double scale;
+  final double currentScale;
+
+  const _FontButton({required this.label, required this.scale, required this.currentScale});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = currentScale == scale;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ElevatedButton(
+      onPressed: () => SettingsController().updateTextScale(scale),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? colorScheme.primary : colorScheme.surfaceVariant,
+        foregroundColor: isSelected ? Colors.white : colorScheme.onSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }

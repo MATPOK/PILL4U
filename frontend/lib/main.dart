@@ -3,11 +3,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'helpers/notification_service.dart';
+import 'helpers/settings_controller.dart'; // Dodany import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await NotificationService().init();
+  await SettingsController().loadSettings(); // Wczytywanie ustawień z pamięci
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('jwt_token');
@@ -33,10 +35,36 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PILL4U',
-      debugShowCheckedModeBanner: false,
-      home: widget.isLoggedIn ? const DashboardScreen() : const LoginScreen(),
+    // AnimatedBuilder nasłuchuje zmian i odświeża CAŁĄ aplikację w czasie rzeczywistym
+    return AnimatedBuilder(
+      animation: SettingsController(),
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'PILL4U',
+          debugShowCheckedModeBanner: false,
+
+          // Konfiguracja trybu ciemnego
+          theme: ThemeData.light(useMaterial3: true).copyWith(
+            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF007AFF), brightness: Brightness.light),
+          ),
+          darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF007AFF), brightness: Brightness.dark),
+          ),
+          themeMode: SettingsController().themeMode, // Decyduje czy ciemny, jasny czy systemowy
+
+          // Skalowanie czcionki dla seniorów na CAŁĄ aplikację
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(SettingsController().textScale),
+              ),
+              child: child!,
+            );
+          },
+
+          home: widget.isLoggedIn ? const DashboardScreen() : const LoginScreen(),
+        );
+      },
     );
   }
 }
