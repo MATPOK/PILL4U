@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/database_helper.dart';
 import 'add_medication_screen.dart';
 import 'history_screen.dart';
 
@@ -14,8 +15,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> medications = [];
-  Set<int> _takenMedIds = {};
-  Set<int> _skippedMedIds = {};
+  final Set<int> _takenMedIds = {};
+  final Set<int> _skippedMedIds = {};
   bool isLoading = true;
   int _selectedIndex = 0;
   String userName = "";
@@ -36,15 +37,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return months[month];
   }
 
+  Future<void> _loadLocalData() async {
+    final localMeds = await DatabaseHelper.instance.getMedications();
+    final now = DateTime.now();
+    const apiDays = ['', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
+    final todayApiStr = apiDays[now.weekday];
+
+    if (mounted) {
+      setState(() {
+        medications = localMeds.where((m) {
+          final medDay = (m['days'] ?? '').toString().trim();
+          return medDay == todayApiStr;
+        }).toList();
+        isLoading = false;
+      });
+    }
+  }
+
   Future<void> _fetchData() async {
+    await _loadLocalData();
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
 
-      if (token == null) {
-        if (mounted) setState(() => isLoading = false);
-        return;
-      }
+      if (token == null) return;
 
       final userResponse = await http.get(
         Uri.parse('https://pill4u.onrender.com/api/user/me'),
@@ -55,9 +72,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (userResponse.statusCode == 200) {
         final userData = jsonDecode(userResponse.body);
-        userName = userData['name'] ?? "Użytkowniku";
-      } else {
-        userName = "Użytkowniku";
+        if (mounted) {
+          setState(() {
+            userName = userData['name'] ?? "Użytkowniku";
+          });
+        }
       }
 
       final medsResponse = await http.get(
@@ -70,17 +89,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (medsResponse.statusCode == 200) {
         final allMeds = jsonDecode(medsResponse.body) as List;
-        final now = DateTime.now();
-        const apiDays = ['', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
-        final todayApiStr = apiDays[now.weekday];
-
-        medications = allMeds.where((m) {
-          final medDay = (m['days'] ?? '').toString().trim();
-          return medDay == todayApiStr;
-        }).toList();
+        await DatabaseHelper.instance.insertMedications(allMeds);
+        await _loadLocalData();
       }
     } catch (e) {
-      userName = "Użytkowniku";
+      // Ignorujemy błędy sieciowe, zostają dane z bazy lokalnej
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -129,7 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Witaj, $userName!',
+                        'Witaj${userName.isNotEmpty ? ", $userName" : ""}!',
                         style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
                       ),
                       const SizedBox(height: 4),
@@ -168,7 +181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 itemCount: medications.length,
                 itemBuilder: (context, index) {
                   final med = medications[index];
-                  final int medId = med['id'] ?? index;
+                  final int medId = med['api_id'] ?? med['id'] ?? index;
 
                   final bool isTaken = _takenMedIds.contains(medId);
                   final bool isSkipped = _skippedMedIds.contains(medId);
@@ -193,11 +206,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     decoration: BoxDecoration(
                       color: cardBgColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                      border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                       boxShadow: [
                         if (!isTaken && !isSkipped)
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -292,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+          border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
         ),
         child: BottomNavigationBar(
           backgroundColor: Colors.white,

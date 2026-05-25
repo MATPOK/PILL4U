@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/database_helper.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({super.key});
@@ -75,33 +76,43 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       final List<String> orderedSelectedDays = _days.where((d) => _selectedDays.contains(d)).toList();
 
       for (String day in orderedSelectedDays) {
-        final response = await http.post(
-          Uri.parse('https://pill4u.onrender.com/api/medications'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
+        try {
+          final response = await http.post(
+            Uri.parse('https://pill4u.onrender.com/api/medications'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'name': name,
+              'dosage': dosage,
+              'time': timeStr,
+              'days': day,
+            }),
+          );
+
+          if (response.statusCode != 201 && response.statusCode != 200) {
+            throw Exception();
+          }
+        } catch (e) {
+          // TUTAJ JEST MAGIA: Jeśli wyżej poleci błąd braku neta, ratujemy się zapisem do SQLite!
+          await DatabaseHelper.instance.insertSingleMedication({
             'name': name,
             'dosage': dosage,
             'time': timeStr,
             'days': day,
-          }),
-        );
-
-        if (response.statusCode != 201 && response.statusCode != 200) {
-          throw Exception();
+          });
         }
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lek dodany pomyślnie!'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('Lek zapisany!'), backgroundColor: Colors.green),
       );
       Navigator.pop(context);
 
     } catch (error) {
-      _showError('Wystąpił błąd podczas dodawania leku do bazy.');
+      _showError('Błąd krytyczny aplikacji.');
     } finally {
       if (mounted) {
         setState(() { isLoading = false; });
