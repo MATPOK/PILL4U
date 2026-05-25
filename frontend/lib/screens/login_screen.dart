@@ -135,7 +135,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Logo', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, color: Colors.black87)),
+                    Center(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 100,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     const Text('Twój osobisty asystent lekowy', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.black54)),
                     const SizedBox(height: 48),

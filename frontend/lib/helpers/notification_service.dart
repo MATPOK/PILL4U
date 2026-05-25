@@ -14,13 +14,13 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Europe/Warsaw'));
 
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@drawable/app_icon');
+    // POPRAWKA 1: System szuka teraz nowej ikony z generatora
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
 
-    // TUTAJ POPRAWKA: parametr nazywa się 'settings'
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
@@ -54,7 +54,8 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       enableVibration: true,
-      icon: '@drawable/app_icon',
+      // POPRAWKA 2: Tutaj również nowa ikona
+      icon: '@drawable/ic_notification',
       color: Color(0xFF007AFF),
     );
 
@@ -65,12 +66,10 @@ class NotificationService {
     for (int day in daysOfWeek) {
       tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
 
-      // Dopasuj dzień tygodnia (Flutter week: 1=Mon, 7=Sun)
       while (scheduledDate.weekday != day) {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
 
-      // Jeśli czas w tym dniu już minął, przesuń o tydzień
       if (scheduledDate.isBefore(now)) {
         scheduledDate = scheduledDate.add(const Duration(days: 7));
       }
