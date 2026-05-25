@@ -148,6 +148,62 @@ app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'privacy.html'));
 });
 
+//POBIERANIE HISTORII (GET /api/history)
+app.get('/api/history', authenticateToken, (req, res) => {
+    // Pobieramy historię i sortujemy od najnowszych wpisów (DESC)
+    const sql = 'SELECT * FROM medication_history WHERE userId = ? ORDER BY takenAt DESC';
+    db.all(sql, [req.user.userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+    //DODAWANIE WPISU DO HISTORII (POST /api/history)
+    app.post('/api/history', authenticateToken, (req, res) => {
+        const { medicationId, medicationName, takenAt, status } = req.body;
+
+        // Walidacja – upewniamy się, że status to TAKEN lub MISSED
+        if (!status || !['TAKEN', 'MISSED'].includes(status.toUpperCase())) {
+            return res.status(400).json({ error: "Status jest wymagany i musi wynosić 'TAKEN' lub 'MISSED'." });
+        }
+
+        const time = takenAt || new Date().toISOString();
+        const sql = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
+
+        db.run(sql, [req.user.userId, medicationId, medicationName, time, status.toUpperCase()], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ id: this.lastID, message: 'Wpis dodany do historii!' });
+        });
+    });
+
+    app.get('/api/history/stats', authenticateToken, (req, res) => {
+        const sql = `
+            SELECT
+                SUM(CASE WHEN status = 'TAKEN' THEN 1 ELSE 0 END) as taken,
+                SUM(CASE WHEN status = 'MISSED' THEN 1 ELSE 0 END) as missed
+            FROM medication_history
+            WHERE userId = ?
+        `;
+
+        db.get(sql, [req.user.userId], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            const taken = row.taken || 0;
+            const missed = row.missed || 0;
+            const total = taken + missed;
+
+            // Liczymy skuteczność (jeśli brak wpisów, domyślnie dajemy 100%)
+            const effectiveness = total > 0 ? Math.round((taken / total) * 100) : 100;
+
+            // Zwracamy piękny, gotowy obiekt pod widok we Flutterze
+            res.json({
+                taken: taken,
+                missed: missed,
+                effectiveness: `${effectiveness}%`
+            });
+        });
+    });
+
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`Serwer PILL4U działa na porcie http://localhost:${PORT}`);
