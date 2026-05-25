@@ -76,8 +76,17 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       final List<String> orderedSelectedDays = _days.where((d) => _selectedDays.contains(d)).toList();
 
       for (String day in orderedSelectedDays) {
+        // 1. ZAWSZE ładujemy od razu do lokalnej bazy (Optimistic UI) - lek pojawi się od razu!
+        await DatabaseHelper.instance.insertSingleMedication({
+          'name': name,
+          'dosage': dosage,
+          'time': timeStr,
+          'days': day,
+        });
+
+        // 2. Po cichu w tle wypychamy to na serwer Przemka
         try {
-          final response = await http.post(
+          await http.post(
             Uri.parse('https://pill4u.onrender.com/api/medications'),
             headers: {
               'Content-Type': 'application/json',
@@ -90,18 +99,8 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               'days': day,
             }),
           );
-
-          if (response.statusCode != 201 && response.statusCode != 200) {
-            throw Exception();
-          }
         } catch (e) {
-          // TUTAJ JEST MAGIA: Jeśli wyżej poleci błąd braku neta, ratujemy się zapisem do SQLite!
-          await DatabaseHelper.instance.insertSingleMedication({
-            'name': name,
-            'dosage': dosage,
-            'time': timeStr,
-            'days': day,
-          });
+          // Błąd neta/serwera nas nie obchodzi, bo i tak zapisaliśmy lokalnie
         }
       }
 
@@ -112,7 +111,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       Navigator.pop(context);
 
     } catch (error) {
-      _showError('Błąd krytyczny aplikacji.');
+      _showError('Wystąpił błąd krytyczny.');
     } finally {
       if (mounted) {
         setState(() { isLoading = false; });

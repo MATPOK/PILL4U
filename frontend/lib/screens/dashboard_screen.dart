@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/database_helper.dart';
 import 'add_medication_screen.dart';
 import 'history_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,6 +39,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadLocalData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final localName = prefs.getString('user_name') ?? "";
+
     final localMeds = await DatabaseHelper.instance.getMedications();
     final now = DateTime.now();
     const apiDays = ['', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
@@ -45,6 +49,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (mounted) {
       setState(() {
+        userName = localName;
         medications = localMeds.where((m) {
           final medDay = (m['days'] ?? '').toString().trim();
           return medDay == todayApiStr;
@@ -72,10 +77,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (userResponse.statusCode == 200) {
         final userData = jsonDecode(userResponse.body);
+        final fetchedName = userData['name'] ?? "Użytkowniku";
+
+        await prefs.setString('user_name', fetchedName);
+
         if (mounted) {
           setState(() {
-            userName = userData['name'] ?? "Użytkowniku";
+            userName = fetchedName;
           });
+        }
+      }
+
+      final dbMeds = await DatabaseHelper.instance.getMedications();
+      final unsyncedMeds = dbMeds.where((m) => m['api_id'] == null).toList();
+
+      for (var med in unsyncedMeds) {
+        try {
+          final response = await http.post(
+            Uri.parse('https://pill4u.onrender.com/api/medications'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'name': med['name'],
+              'dosage': med['dosage'],
+              'time': med['time'],
+              'days': med['days'],
+            }),
+          );
+
+          if (response.statusCode == 201 || response.statusCode == 200) {
+            final responseData = jsonDecode(response.body);
+            final int? newApiId = responseData['id'];
+            if (newApiId != null && med['id'] != null) {
+              await DatabaseHelper.instance.updateApiId(med['id'], newApiId);
+            }
+          }
+        } catch (e) {
+          // Przerwij pętlę przy błędzie neta, spróbujemy zsynchronizować później
+          break;
         }
       }
 
@@ -93,7 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await _loadLocalData();
       }
     } catch (e) {
-      // Ignorujemy błędy sieciowe, zostają dane z bazy lokalnej
+      // Ignorujemy błędy sieciowe (tryb offline)
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -329,6 +370,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ).then((_) {
                 _fetchData();
               });
+            } else if (index == 3) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
             } else {
               setState(() => _selectedIndex = index);
             }

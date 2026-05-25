@@ -42,9 +42,11 @@ class DatabaseHelper {
 
   Future<void> insertMedications(List<dynamic> meds) async {
     final db = await instance.database;
-    final batch = db.batch();
+
+    final localMeds = await db.query('medications', where: 'api_id IS NULL');
 
     await db.delete('medications');
+    final batch = db.batch();
 
     for (var med in meds) {
       batch.insert('medications', {
@@ -56,12 +58,39 @@ class DatabaseHelper {
       });
     }
 
+    for (var local in localMeds) {
+      final existsInApi = meds.any((apiMed) =>
+      apiMed['name'] == local['name'] &&
+          apiMed['time'] == local['time'] &&
+          apiMed['days'] == local['days']
+      );
+
+      if (!existsInApi) {
+        batch.insert('medications', {
+          'name': local['name'],
+          'dosage': local['dosage'],
+          'time': local['time'],
+          'days': local['days'],
+        });
+      }
+    }
+
     await batch.commit();
   }
 
   Future<void> insertSingleMedication(Map<String, dynamic> med) async {
     final db = await instance.database;
     await db.insert('medications', med);
+  }
+
+  Future<void> updateApiId(int id, int apiId) async {
+    final db = await instance.database;
+    await db.update(
+      'medications',
+      {'api_id': apiId},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<List<Map<String, dynamic>>> getMedications() async {
