@@ -23,6 +23,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() {
@@ -161,7 +167,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _selectedTime.format(context),
+                        '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
                         style: const TextStyle(fontSize: 16),
                       ),
                       const Icon(Icons.access_time, color: Color(0xFF007AFF)),
