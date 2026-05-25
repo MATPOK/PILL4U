@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/database_helper.dart';
+import '../helpers/notification_service.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({super.key});
@@ -67,48 +65,38 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     setState(() { isLoading = true; });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('jwt_token');
-
-      if (token == null) throw Exception();
-
       final String timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
       final List<String> orderedSelectedDays = _days.where((d) => _selectedDays.contains(d)).toList();
 
+      final Map<String, int> dayMapper = {'Pn': 1, 'Wt': 2, 'Śr': 3, 'Cz': 4, 'Pt': 5, 'Sb': 6, 'Nd': 7};
+      final List<int> daysAsInts = orderedSelectedDays.map((d) => dayMapper[d]!).toList();
+      final int baseNotificationId = DateTime.now().millisecondsSinceEpoch % 10000;
+
+      // 1. Zlecenie do Androida: Ustaw budzik!
+      await NotificationService().scheduleMedicationNotification(
+        id: baseNotificationId,
+        title: 'Czas na lek: $name!',
+        body: 'Przypomnienie o wzięciu dawki: $dosage',
+        hour: _selectedTime.hour,
+        minute: _selectedTime.minute,
+        daysOfWeek: daysAsInts,
+      );
+
+      // 2. Zapis tylko do SQLite! (Dashboard sam wyśle to do chmury przez Sync Engine)
       for (String day in orderedSelectedDays) {
-        // 1. ZAWSZE ładujemy od razu do lokalnej bazy (Optimistic UI) - lek pojawi się od razu!
         await DatabaseHelper.instance.insertSingleMedication({
           'name': name,
           'dosage': dosage,
           'time': timeStr,
           'days': day,
         });
-
-        // 2. Po cichu w tle wypychamy to na serwer Przemka
-        try {
-          await http.post(
-            Uri.parse('https://pill4u.onrender.com/api/medications'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'name': name,
-              'dosage': dosage,
-              'time': timeStr,
-              'days': day,
-            }),
-          );
-        } catch (e) {
-          // Błąd neta/serwera nas nie obchodzi, bo i tak zapisaliśmy lokalnie
-        }
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lek zapisany!'), backgroundColor: Colors.green),
       );
-      Navigator.pop(context);
+      Navigator.pop(context); // Powrót wyzwoli Sync w Dashboardzie
 
     } catch (error) {
       _showError('Wystąpił błąd krytyczny.');
