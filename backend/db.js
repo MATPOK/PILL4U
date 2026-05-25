@@ -24,6 +24,15 @@ db.serialize(() => {
         days TEXT,
         FOREIGN KEY (userId) REFERENCES users(id)
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS medication_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        medicationId INTEGER,
+        medicationName TEXT,
+        takenAt TEXT,
+        status TEXT,
+        FOREIGN KEY (userId) REFERENCES users(id)
+    )`);
 });
 
 module.exports = db;
