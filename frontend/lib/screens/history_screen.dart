@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dashboard_screen.dart'; // Dodany import
 import 'add_medication_screen.dart';
+import 'profile_screen.dart'; // Dodany import
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -21,13 +23,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     {'day': 'Nd', 'percent': 0.7},
   ];
 
+  // POPRAWIONA NAWIGACJA
   void _onItemTapped(int index) {
     if (index == 0) {
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      );
     } else if (index == 2) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ProfileScreen()),
       );
     }
   }

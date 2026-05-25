@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async'; // Dodałem import Timera
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Timer? _refreshTimer; // Dodana zmienna do odświeżania czasu
   List<dynamic> medications = [];
   final Set<int> _takenMedIds = {};
   final Set<int> _skippedMedIds = {};
@@ -26,6 +28,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _fetchData();
+
+    // START ZEGARA: Odświeża ekran co 15 sekund, by pokazać przyciski Weź/Pomiń
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel(); // Zabijamy zegar, by nie obciążać baterii
+    super.dispose();
   }
 
   String _getFullWeekday(int weekday) {
@@ -115,7 +130,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           }
         } catch (e) {
-          // Przerwij pętlę przy błędzie neta, spróbujemy zsynchronizować później
           break;
         }
       }
@@ -134,7 +148,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await _loadLocalData();
       }
     } catch (e) {
-      // Ignorujemy błędy sieciowe (tryb offline)
+      // Ignorujemy błędy sieciowe
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -359,7 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           onTap: (index) {
             if (index == 1) {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const HistoryScreen()),
               );
@@ -371,7 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _fetchData();
               });
             } else if (index == 3) {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
