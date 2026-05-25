@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _nameController = TextEditingController();
 
   Future<void> _submit() async {
-    // 1. Zbieramy dane i od razu konwertujemy email na małe litery
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
     final name = _nameController.text.trim();
@@ -69,7 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final String endpoint = isLogin ? 'login' : 'register';
     final Uri url = Uri.parse('https://pill4u.onrender.com/api/$endpoint');
 
-    // Wysyłamy sformatowany (mały) email do serwera
     final Map<String, dynamic> requestBody = {
       'email': email,
       'password': password,
@@ -128,6 +127,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ✅ POPRAWKA: canLaunchUrl przed launchUrl
+  Future<void> _launchPrivacyPolicy() async {
+    final Uri url = Uri.parse('https://pill4u.onrender.com/privacy');
+    if (!await canLaunchUrl(url)) {
+      _showError('Nie można otworzyć linku.');
+      return;
+    }
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -170,9 +179,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                        'Twój osobisty asystent lekowy',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant)
+                      'Twój osobisty asystent lekowy',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 48),
 
@@ -240,8 +249,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             activeColor: colorScheme.primary,
                             onChanged: (val) => setState(() => acceptTerms = val ?? false),
                           ),
+                          // ✅ POPRAWKA: GestureDetector z HitTestBehavior.opaque
                           Expanded(
-                            child: Text('Akceptuję politykę prywatności oraz regulamin', style: TextStyle(fontSize: 12, color: colorScheme.onSurface)),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _launchPrivacyPolicy,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'Akceptuję politykę prywatności oraz regulamin',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
