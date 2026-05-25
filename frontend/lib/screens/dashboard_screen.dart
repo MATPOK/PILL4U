@@ -57,6 +57,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final localName = prefs.getString('user_name') ?? "";
 
     final localMeds = await DatabaseHelper.instance.getMedications();
+    // Pobieramy historię kliknięć z DZISIAJ, żeby odtworzyć stan ekranu
+    final todayHistory = await DatabaseHelper.instance.getTodayHistory();
+
     final now = DateTime.now();
     const apiDays = ['', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
     final todayApiStr = apiDays[now.weekday];
@@ -68,6 +71,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final medDay = (m['days'] ?? '').toString().trim();
           return medDay == todayApiStr;
         }).toList();
+
+        _takenMedIds.clear();
+        _skippedMedIds.clear();
+        for (var h in todayHistory) {
+          if (h['status'] == 'TAKEN') _takenMedIds.add(h['medication_id'] as int);
+          if (h['status'] == 'MISSED') _skippedMedIds.add(h['medication_id'] as int);
+        }
+
         isLoading = false;
       });
     }
@@ -92,13 +103,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (userResponse.statusCode == 200) {
         final userData = jsonDecode(userResponse.body);
         final fetchedName = userData['name'] ?? "Użytkowniku";
-
         await prefs.setString('user_name', fetchedName);
-
         if (mounted) {
-          setState(() {
-            userName = fetchedName;
-          });
+          setState(() { userName = fetchedName; });
         }
       }
 
@@ -128,9 +135,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
               await DatabaseHelper.instance.updateApiId(med['id'], newApiId);
             }
           }
-        } catch (e) {
-          break;
-        }
+        } catch (e) { break; }
+      }
+
+      final unsyncedHistory = await DatabaseHelper.instance.getUnsyncedHistory();
+      for (var item in unsyncedHistory) {
+        try {
+          final response = await http.post(
+            Uri.parse('https://pill4u.onrender.com/api/history'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'medicationId': item['medication_id'],
+              'medicationName': item['medication_name'],
+              'status': item['status'],
+              'takenAt': item['taken_at'],
+            }),
+          );
+
+          if (response.statusCode == 201 || response.statusCode == 200) {
+            final responseData = jsonDecode(response.body);
+            final int? newHistoryApiId = responseData['id'];
+            if (newHistoryApiId != null && item['id'] != null) {
+              await DatabaseHelper.instance.updateHistoryApiId(item['id'], newHistoryApiId);
+            }
+          }
+        } catch (e) { break; }
       }
 
       final medsResponse = await http.get(
@@ -154,33 +186,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _markAsTaken(int medId) {
+  Future<void> _markAsTaken(int medId, String medName) async {
+    if (_takenMedIds.contains(medId)) return;
+
     setState(() {
       _takenMedIds.add(medId);
       _skippedMedIds.remove(medId);
     });
-  }
 
-  void _markAsSkipped(int medId) {
-    setState(() {
-      _skippedMedIds.add(medId);
-      _takenMedIds.remove(medId);
+
+    await DatabaseHelper.instance.insertHistoryItem({
+      'medication_id': medId,
+      'medication_name': medName,
+      'status': 'TAKEN',
+      'taken_at': DateTime.now().toIso8601String(),
     });
   }
 
-  void _resetStatus(int medId) {
-    setState(() {
-      _takenMedIds.remove(medId);
-      _skippedMedIds.remove(medId);
+  Future<void> _markAsSkipped(int medId, String medName) async {
+    if (_takenMedIds.contains(medId) || _skippedMedIds.contains(medId)) return;
+
+    setState(() { _skippedMedIds.add(medId); });
+
+    await DatabaseHelper.instance.insertHistoryItem({
+      'medication_id': medId,
+      'medication_name': medName,
+      'status': 'MISSED',
+      'taken_at': DateTime.now().toIso8601String(),
     });
+
+    _fetchData();
   }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final dateString = '${_getFullWeekday(now.weekday)}, ${now.day} ${_getPolishMonth(now.month)}';
-
-    // Dynamiczny motyw
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -231,6 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 itemBuilder: (context, index) {
                   final med = medications[index];
                   final int medId = med['api_id'] ?? med['id'] ?? index;
+                  final String medName = med['name'] ?? 'Lek';
 
                   final bool isTaken = _takenMedIds.contains(medId);
                   final bool isSkipped = _skippedMedIds.contains(medId);
@@ -245,7 +287,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   final bool isPending = !isTaken && !isSkipped && (nowInMinutes < medInMinutes);
 
-                  // Kolory kart dostosowane do trybu nocnego
                   final Color cardBgColor = isTaken
                       ? (isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFE9FBF0))
                       : isSkipped
@@ -292,7 +333,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                med['name'] ?? 'Lek',
+                                medName,
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface),
                               ),
                               const SizedBox(height: 4),
@@ -304,26 +345,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         if (isTaken)
-                          InkWell(
-                            onTap: () => _resetStatus(medId),
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle, color: theme.colorScheme.onSurface, size: 20),
-                                const SizedBox(width: 4),
-                                Text('Wzięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-                              ],
-                            ),
+                        // USUNIĘTO INKWELL: Nie można już odklikać leku i zepsuć statystyk
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle, color: theme.colorScheme.onSurface, size: 20),
+                              const SizedBox(width: 4),
+                              Text('Wzięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                            ],
                           )
                         else if (isSkipped)
-                          InkWell(
-                            onTap: () => _resetStatus(medId),
-                            child: Row(
-                              children: [
-                                Icon(Icons.cancel, color: theme.colorScheme.onSurface, size: 20),
-                                const SizedBox(width: 4),
-                                Text('Pominięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-                              ],
-                            ),
+                          Row(
+                            children: [
+                              Icon(Icons.cancel, color: theme.colorScheme.onSurface, size: 20),
+                              const SizedBox(width: 4),
+                              Text('Pominięty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                            ],
                           )
                         else if (isPending)
                             const Text('Oczekiwanie', style: TextStyle(color: Colors.grey, fontSize: 14))
@@ -331,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Row(
                               children: [
                                 ElevatedButton(
-                                  onPressed: () => _markAsTaken(medId),
+                                  onPressed: () => _markAsTaken(medId, medName),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF007AFF),
                                     foregroundColor: Colors.white,
@@ -343,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 TextButton(
-                                  onPressed: () => _markAsSkipped(medId),
+                                  onPressed: () => _markAsSkipped(medId, medName),
                                   style: TextButton.styleFrom(
                                     backgroundColor: const Color(0xFF007AFF),
                                     foregroundColor: Colors.white,

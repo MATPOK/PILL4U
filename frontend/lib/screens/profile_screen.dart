@@ -5,6 +5,7 @@ import 'history_screen.dart';
 import 'add_medication_screen.dart';
 import 'login_screen.dart';
 import '../helpers/settings_controller.dart';
+import '../helpers/database_helper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,11 +19,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 1. Usuwamy dane sesji
     await prefs.remove('jwt_token');
     await prefs.remove('user_name');
 
+    // 2. Zerujemy bazę SQLite
+    await DatabaseHelper.instance.clearAllData();
+
     if (!mounted) return;
 
+    // 3. Wyrzucamy na ekran logowania (kasując historię nawigacji)
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -32,7 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Dynamicznie pobieramy kolory z obecnego motywu (jasny lub ciemny)
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -48,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: SafeArea(
         child: AnimatedBuilder(
-            animation: SettingsController(), // Odświeża ten ekran gdy klikniemy przełącznik
+            animation: SettingsController(),
             builder: (context, child) {
               final settings = SettingsController();
               final isSystemTheme = settings.themeMode == ThemeMode.system;
@@ -68,11 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 48),
 
-                    // SEKCJA: WYGLĄD
                     Text('Wygląd aplikacji', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primary)),
                     const SizedBox(height: 16),
 
-                    // Przełącznik: Zależny od systemu
                     SwitchListTile(
                       title: const Text('Zgodnie z ustawieniami telefonu', style: TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: const Text('Aplikacja dostosuje się do motywu systemu'),
@@ -83,7 +87,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
 
-                    // Przełącznik: Wymuś tryb ciemny (aktywny tylko gdy systemowy jest wyłączony)
                     SwitchListTile(
                       title: const Text('Wymuś tryb ciemny', style: TextStyle(fontWeight: FontWeight.w500)),
                       value: isDarkTheme,
@@ -95,7 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const Padding(padding: EdgeInsets.symmetric(vertical: 16.0), child: Divider()),
 
-                    // SEKCJA: CZCIONKA
                     Text('Rozmiar tekstu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primary)),
                     const SizedBox(height: 16),
 
@@ -110,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 64),
 
-                    // PRZYCISK WYLOGOWANIA
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -163,7 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// Pomocniczy widżet do wyboru rozmiaru czcionki
 class _FontButton extends StatelessWidget {
   final String label;
   final double scale;
