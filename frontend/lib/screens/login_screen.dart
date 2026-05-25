@@ -22,34 +22,39 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _nameController = TextEditingController();
 
   Future<void> _submit() async {
+    // 1. Zbieramy dane i od razu konwertujemy email na małe litery
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     final passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$');
     final nameRegex = RegExp(r'^[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+$');
 
-    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       _showError('Wypełnij email i hasło!');
       return;
     }
 
-    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+    if (!emailRegex.hasMatch(email)) {
       _showError('Podaj poprawny format adresu email!');
       return;
     }
 
     if (!isLogin) {
-      if (_nameController.text.trim().isEmpty) {
+      if (name.isEmpty) {
         _showError('Wypełnij pole Imię!');
         return;
       }
-      if (!nameRegex.hasMatch(_nameController.text.trim())) {
+      if (!nameRegex.hasMatch(name)) {
         _showError('Imię musi zaczynać się z dużej litery i zawierać tylko litery!');
         return;
       }
-      if (!passwordRegex.hasMatch(_passwordController.text.trim())) {
+      if (!passwordRegex.hasMatch(password)) {
         _showError('Hasło musi mieć min. 8 znaków, literę i cyfrę!');
         return;
       }
-      if (_passwordController.text != _confirmPasswordController.text) {
+      if (password != _confirmPasswordController.text) {
         _showError('Podane hasła nie są identyczne!');
         return;
       }
@@ -64,13 +69,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final String endpoint = isLogin ? 'login' : 'register';
     final Uri url = Uri.parse('https://pill4u.onrender.com/api/$endpoint');
 
+    // Wysyłamy sformatowany (mały) email do serwera
     final Map<String, dynamic> requestBody = {
-      'email': _emailController.text.trim(),
-      'password': _passwordController.text.trim(),
+      'email': email,
+      'password': password,
     };
 
     if (!isLogin) {
-      requestBody['name'] = _nameController.text.trim();
+      requestBody['name'] = name;
     }
 
     try {
@@ -124,8 +130,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -136,49 +146,73 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Center(
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        height: 100,
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark
+                                  ? Colors.black.withValues(alpha: 0.3)
+                                  : Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 15,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          height: 80,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text('Twój osobisty asystent lekowy', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.black54)),
+                    const SizedBox(height: 16),
+                    Text(
+                        'Twój osobisty asystent lekowy',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant)
+                    ),
                     const SizedBox(height: 48),
 
                     if (!isLogin) ...[
-                      const Text('Imię', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('Imię', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.primary)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _nameController,
+                        style: TextStyle(color: colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: 'Wpisz swoje imię',
-                          prefixIcon: const Icon(Icons.person_outline),
+                          prefixIcon: Icon(Icons.person_outline, color: isDark ? Colors.grey : null),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
 
-                    const Text('Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text('Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.primary)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _emailController,
+                      style: TextStyle(color: colorScheme.onSurface),
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: isLogin ? 'twoj@email.pl' : 'adres@email.com',
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        prefixIcon: Icon(Icons.email_outlined, color: isDark ? Colors.grey : null),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    const Text('Hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text('Hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.primary)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _passwordController,
+                      style: TextStyle(color: colorScheme.onSurface),
                       decoration: InputDecoration(
                         hintText: isLogin ? '••••••••' : 'Min. 8 znaków, litera i cyfra',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: Icon(Icons.lock_outline, color: isDark ? Colors.grey : null),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       obscureText: true,
@@ -186,13 +220,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
 
                     if (!isLogin) ...[
-                      const Text('Potwierdź hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('Potwierdź hasło', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.primary)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _confirmPasswordController,
+                        style: TextStyle(color: colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: 'Powtórz hasło',
-                          prefixIcon: const Icon(Icons.lock_reset_outlined),
+                          prefixIcon: Icon(Icons.lock_reset_outlined, color: isDark ? Colors.grey : null),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         obscureText: true,
@@ -202,10 +237,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Checkbox(
                             value: acceptTerms,
+                            activeColor: colorScheme.primary,
                             onChanged: (val) => setState(() => acceptTerms = val ?? false),
                           ),
-                          const Expanded(
-                            child: Text('Akceptuję politykę prywatności oraz regulamin', style: TextStyle(fontSize: 12)),
+                          Expanded(
+                            child: Text('Akceptuję politykę prywatności oraz regulamin', style: TextStyle(fontSize: 12, color: colorScheme.onSurface)),
                           ),
                         ],
                       ),
@@ -244,10 +280,10 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.security, size: 16, color: Colors.black54),
-                  SizedBox(width: 8),
-                  Text('Twoje dane są bezpieczne i zaszyfrowane', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                children: [
+                  Icon(Icons.security, size: 16, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text('Twoje dane są bezpieczne i zaszyfrowane', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
             ),

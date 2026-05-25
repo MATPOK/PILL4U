@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart'; // Dodany import
+import 'dashboard_screen.dart';
 import 'add_medication_screen.dart';
-import 'profile_screen.dart'; // Dodany import
+import 'profile_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -23,7 +23,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     {'day': 'Nd', 'percent': 0.7},
   ];
 
-  // POPRAWIONA NAWIGACJA
   void _onItemTapped(int index) {
     if (index == 0) {
       Navigator.pushReplacement(
@@ -45,8 +44,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,7 +56,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: EdgeInsets.fromLTRB(24.0, 32.0, 24.0, 24.0),
               child: Text(
                 'Twoje statystyki',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
             ),
             Padding(
@@ -66,7 +67,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE9FBF0),
+                        color: isDark ? Colors.green.withValues(alpha: 0.15) : const Color(0xFFE9FBF0),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -74,7 +75,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         children: const [
                           Icon(Icons.check_circle, color: Color(0xFF34C759), size: 28),
                           SizedBox(height: 12),
-                          Text('Wzięte', style: TextStyle(color: Colors.black54, fontSize: 14)),
+                          Text('Wzięte', style: TextStyle(color: Colors.grey, fontSize: 14)),
                           SizedBox(height: 4),
                           Text('42', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
                         ],
@@ -86,7 +87,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFCE8E8),
+                        color: isDark ? Colors.red.withValues(alpha: 0.15) : const Color(0xFFFCE8E8),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -94,7 +95,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         children: const [
                           Icon(Icons.cancel, color: Color(0xFFFF3B30), size: 28),
                           SizedBox(height: 12),
-                          Text('Pominięte', style: TextStyle(color: Colors.black54, fontSize: 14)),
+                          Text('Pominięte', style: TextStyle(color: Colors.grey, fontSize: 14)),
                           SizedBox(height: 4),
                           Text('5', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
                         ],
@@ -110,7 +111,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                  color: isDark ? const Color(0xFF007AFF).withValues(alpha: 0.15) : const Color(0xFF007AFF).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -119,7 +120,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
-                        Text('Skuteczność', style: TextStyle(color: Colors.black54, fontSize: 14)),
+                        Text('Skuteczność', style: TextStyle(color: Colors.grey, fontSize: 14)),
                         SizedBox(height: 4),
                         Text('89%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Color(0xFF007AFF))),
                       ],
@@ -134,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: EdgeInsets.symmetric(horizontal: 24.0),
               child: Text(
                 'Aktywność w tym tygodniu',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 24),
@@ -151,7 +152,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         height: 120,
                         width: 24,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.bottomCenter,
@@ -169,7 +170,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         data['day'],
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Colors.grey,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -187,7 +188,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
