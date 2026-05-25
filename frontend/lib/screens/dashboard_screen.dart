@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'add_medication_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -302,7 +303,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           onTap: (index) {
-            setState(() => _selectedIndex = index);
+            if (index == 2) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
+              ).then((_) {
+                _fetchData();
+              });
+            } else {
+              setState(() => _selectedIndex = index);
+            }
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today, size: 28), label: 'Dziś'),
