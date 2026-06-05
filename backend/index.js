@@ -3,6 +3,7 @@ require('dotenv').config();
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const express = require('express');
+const cron = require('node-cron');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -63,14 +64,21 @@ app.put('/api/medications/:id', authenticateToken, (req, res) => {
     });
 });
 
-// USUWANIE LEKU (DELETE /api/medications/:id)
+// Usuwanie leku wraz z powiązaną historią (Kaskadowe usuwanie)
 app.delete('/api/medications/:id', authenticateToken, (req, res) => {
-    const sql = 'DELETE FROM medications WHERE id = ? AND userId = ?';
+    const medId = req.params.id;
+    const userId = req.user.userId;
 
-    db.run(sql, [req.params.id, req.user.userId], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono leku lub brak uprawnień.' });
-        res.json({ message: 'Lek usunięty.' });
+    // Najpierw: usuń całą historię tego leku
+    db.run('DELETE FROM medication_history WHERE medicationId = ? AND userId = ?', [medId, userId], (err) => {
+        if (err) console.error("Błąd usuwania powiązanej historii:", err);
+
+        // Następnie: usuń sam lek z bazy
+        db.run('DELETE FROM medications WHERE id = ? AND userId = ?', [medId, userId], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Lek nie znaleziony.' });
+            res.json({ message: 'Lek i jego historia zostały usunięte.' });
+        });
     });
 });
 
@@ -176,6 +184,17 @@ app.get('/api/history', authenticateToken, (req, res) => {
         });
     });
 
+    // USUWANIE WPISU Z HISTORII (Cofanie akcji)
+    app.delete('/api/history/:id', authenticateToken, (req, res) => {
+        // Usuwamy po ID wpisu, upewniając się, że należy do zalogowanego użytkownika
+        const sql = 'DELETE FROM medication_history WHERE id = ? AND userId = ?';
+        db.run(sql, [req.params.id, req.user.userId], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono wpisu w historii.' });
+            res.json({ message: 'Cofnięto wpis w historii.' });
+        });
+    });
+
     app.get('/api/history/stats', authenticateToken, (req, res) => {
         const sql = `
             SELECT
@@ -203,6 +222,45 @@ app.get('/api/history', authenticateToken, (req, res) => {
             });
         });
     });
+
+// ==========================================
+// CRON JOB: Automatyczne oznaczanie pominiętych leków o 23:59
+// ==========================================
+cron.schedule('59 23 * * *', () => {
+    console.log('CRON: Rozpoczynam weryfikację pominiętych leków na koniec dnia...');
+
+    // Ustawiamy dzisiejszy dzień i datę
+    const jsDaysMap = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']; // 0 to Niedziela w JS
+    const today = new Date();
+    const todayStr = jsDaysMap[today.getDay()];
+    const todayDateStr = today.toISOString().substring(0, 10); // Format YYYY-MM-DD
+
+    // 1. Pobieramy wszystkie zaplanowane leki wszystkich użytkowników
+    db.all('SELECT * FROM medications', [], (err, meds) => {
+        if (err) return console.error('CRON błąd bazy:', err);
+
+        meds.forEach(med => {
+            // Jeśli lek jest przypisany na dzisiejszy dzień tygodnia
+            if (med.days && med.days.includes(todayStr)) {
+
+                // 2. Sprawdzamy czy użytkownik ma wpis w historii na dzisiaj
+                const sqlCheck = 'SELECT id FROM medication_history WHERE medicationId = ? AND takenAt LIKE ?';
+                db.get(sqlCheck, [med.id, `${todayDateStr}%`], (err, row) => {
+
+                    // 3. Brak jakiegokolwiek wpisu? Zapisujemy automatyczne MISSED
+                    if (!row && !err) {
+                        const sqlInsert = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
+                        // Podajemy czas 23:59 dla pewności
+                        const missedTime = `${todayDateStr}T23:59:00.000Z`;
+
+                        db.run(sqlInsert, [med.userId, med.id, med.name, missedTime, 'MISSED']);
+                        console.log(`CRON: Oznaczono jako MISSED lek ${med.name} dla usera ${med.userId}`);
+                    }
+                });
+            }
+        });
+    });
+});
 
 if (require.main === module) {
     app.listen(PORT, () => {

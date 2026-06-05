@@ -190,6 +190,26 @@
         "responses": {
           "201": { "description": "Wpis dodany do historii" }
         }
+      },
+      "/api/history/{id}": {
+        "delete": {
+          "summary": "Usuwa wpis z historii (Cofanie akcji)",
+          "tags": ["Historia"],
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": { "type": "integer" },
+              "description": "ID wpisu w historii"
+            }
+          ],
+          "responses": {
+            "200": { "description": "Wpis usunięty" },
+            "404": { "description": "Nie znaleziono wpisu" }
+          }
+        }
       }
     },
     "/api/history/stats": {
