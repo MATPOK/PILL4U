@@ -223,46 +223,46 @@ app.get('/api/history', authenticateToken, (req, res) => {
         });
     });
 
-// ==========================================
-// CRON JOB: Automatyczne oznaczanie pominiętych leków o 23:59
-// ==========================================
-cron.schedule('59 23 * * *', () => {
-    console.log('CRON: Rozpoczynam weryfikację pominiętych leków na koniec dnia...');
-
-    // Ustawiamy dzisiejszy dzień i datę
-    const jsDaysMap = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']; // 0 to Niedziela w JS
-    const today = new Date();
-    const todayStr = jsDaysMap[today.getDay()];
-    const todayDateStr = today.toISOString().substring(0, 10); // Format YYYY-MM-DD
-
-    // 1. Pobieramy wszystkie zaplanowane leki wszystkich użytkowników
-    db.all('SELECT * FROM medications', [], (err, meds) => {
-        if (err) return console.error('CRON błąd bazy:', err);
-
-        meds.forEach(med => {
-            // Jeśli lek jest przypisany na dzisiejszy dzień tygodnia
-            if (med.days && med.days.includes(todayStr)) {
-
-                // 2. Sprawdzamy czy użytkownik ma wpis w historii na dzisiaj
-                const sqlCheck = 'SELECT id FROM medication_history WHERE medicationId = ? AND takenAt LIKE ?';
-                db.get(sqlCheck, [med.id, `${todayDateStr}%`], (err, row) => {
-
-                    // 3. Brak jakiegokolwiek wpisu? Zapisujemy automatyczne MISSED
-                    if (!row && !err) {
-                        const sqlInsert = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
-                        // Podajemy czas 23:59 dla pewności
-                        const missedTime = `${todayDateStr}T23:59:00.000Z`;
-
-                        db.run(sqlInsert, [med.userId, med.id, med.name, missedTime, 'MISSED']);
-                        console.log(`CRON: Oznaczono jako MISSED lek ${med.name} dla usera ${med.userId}`);
-                    }
-                });
-            }
-        });
-    });
-});
 
 if (require.main === module) {
+    // ==========================================
+    // CRON JOB: Automatyczne oznaczanie pominiętych leków o 23:59
+    // ==========================================
+    cron.schedule('59 23 * * *', () => {
+        console.log('CRON: Rozpoczynam weryfikację pominiętych leków na koniec dnia...');
+
+        // Ustawiamy dzisiejszy dzień i datę
+        const jsDaysMap = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']; // 0 to Niedziela w JS
+        const today = new Date();
+        const todayStr = jsDaysMap[today.getDay()];
+        const todayDateStr = today.toISOString().substring(0, 10); // Format YYYY-MM-DD
+
+        // 1. Pobieramy wszystkie zaplanowane leki wszystkich użytkowników
+        db.all('SELECT * FROM medications', [], (err, meds) => {
+            if (err) return console.error('CRON błąd bazy:', err);
+
+            meds.forEach(med => {
+                // Jeśli lek jest przypisany na dzisiejszy dzień tygodnia
+                if (med.days && med.days.includes(todayStr)) {
+
+                    // 2. Sprawdzamy czy użytkownik ma wpis w historii na dzisiaj
+                    const sqlCheck = 'SELECT id FROM medication_history WHERE medicationId = ? AND takenAt LIKE ?';
+                    db.get(sqlCheck, [med.id, `${todayDateStr}%`], (err, row) => {
+
+                        // 3. Brak jakiegokolwiek wpisu? Zapisujemy automatyczne MISSED
+                        if (!row && !err) {
+                            const sqlInsert = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
+                            // Podajemy czas 23:59 dla pewności
+                            const missedTime = `${todayDateStr}T23:59:00.000Z`;
+
+                            db.run(sqlInsert, [med.userId, med.id, med.name, missedTime, 'MISSED']);
+                            console.log(`CRON: Oznaczono jako MISSED lek ${med.name} dla usera ${med.userId}`);
+                        }
+                    });
+                }
+            });
+        });
+    });
     app.listen(PORT, () => {
         console.log(`Serwer PILL4U działa na porcie http://localhost:${PORT}`);
     });
