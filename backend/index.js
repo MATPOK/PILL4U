@@ -75,7 +75,7 @@ app.put('/api/medications/:id', authenticateToken, (req, res) => {
     });
 });
 
-// USUWANIE LEKU (Bez usuwania historii - historia zostaje dla statystyk!)
+// USUWANIE LEKU (historia pozostaje na potrzeby statystyk)
 app.delete('/api/medications/:id', authenticateToken, (req, res) => {
     const medId = req.params.id;
     const userId = req.user.userId;
@@ -139,7 +139,7 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ error: 'Nieprawidłowy email lub hasło.' });
         }
 
-        // Generowanie tokentu JWT na 24h
+        // Generowanie tokenu JWT na 24h
         const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
         res.json({ message: 'Zalogowano pomyślnie!', token });
@@ -175,7 +175,7 @@ app.get('/api/history', authenticateToken, (req, res) => {
 app.post('/api/history', authenticateToken, (req, res) => {
     const { medicationId, medicationName, takenAt, status } = req.body;
 
-    // Walidacja – upewniamy się, że status to TAKEN lub MISSED
+    // Walidacja - status musi być TAKEN lub MISSED
     if (!status || !['TAKEN', 'MISSED'].includes(status.toUpperCase())) {
         return res.status(400).json({ error: "Status jest wymagany i musi wynosić 'TAKEN' lub 'MISSED'." });
     }
@@ -219,7 +219,7 @@ app.get('/api/history/stats', authenticateToken, (req, res) => {
         // Liczymy skuteczność (jeśli brak wpisów, domyślnie dajemy 100%)
         const effectiveness = total > 0 ? Math.round((taken / total) * 100) : 100;
 
-        // Zwracamy piękny, gotowy obiekt pod widok we Flutterze
+        // Obiekt odpowiedzi gotowy dla klienta.
         res.json({
             taken: taken,
             missed: missed,
@@ -229,9 +229,7 @@ app.get('/api/history/stats', authenticateToken, (req, res) => {
 });
 
 if (require.main === module) {
-    // ==========================================
-    // CRON JOB: Automatyczne oznaczanie pominiętych leków o 23:59
-    // ==========================================
+    // CRON: automatyczne oznaczanie pominiętych leków o 23:59
     cron.schedule('59 23 * * *', () => {
         console.log('CRON: Rozpoczynam weryfikację pominiętych leków na koniec dnia...');
 

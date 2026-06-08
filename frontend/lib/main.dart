@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_layout_screen.dart';
 import 'helpers/notification_service.dart';
-import 'helpers/settings_controller.dart'; // Dodany import
+import 'helpers/settings_controller.dart';
 import 'helpers/token_storage.dart';
 
 void main() async {
@@ -34,7 +34,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // AnimatedBuilder nasłuchuje zmian i odświeża CAŁĄ aplikację w czasie rzeczywistym
+    // AnimatedBuilder odświeża aplikację po zmianie ustawień.
     return AnimatedBuilder(
       animation: SettingsController(),
       builder: (context, child) {
@@ -51,7 +51,7 @@ class _MyAppState extends State<MyApp> {
           ),
           themeMode: SettingsController().themeMode, // Decyduje czy ciemny, jasny czy systemowy
 
-          // Skalowanie czcionki dla seniorów na CAŁĄ aplikację
+          // Skalowanie czcionki w całej aplikacji.
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(

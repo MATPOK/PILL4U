@@ -286,10 +286,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ],
                     ),
                   ),
-                ), // Tuta brakowało zamknięcia Expanded (406 linijka u góry)
-              ], // Zamykamy listę children wewnętrznej warstwy
-            ), // Zamykamy bazowe Column
-          ), // Zamykamy SafeArea
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

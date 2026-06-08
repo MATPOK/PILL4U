@@ -56,7 +56,7 @@ class DashboardViewModel extends ChangeNotifier {
     _takenMedIds.clear();
     _skippedMedIds.clear();
 
-    // Sprytnie sprawdzamy obydwa identyfikatory - z serwera i z telefonu
+    // Dopasowujemy po obu identyfikatorach (lokalnym i z serwera).
     for (var h in todayHistory) {
       int idToMark = h.medicationId;
       try {
@@ -104,7 +104,7 @@ class DashboardViewModel extends ChangeNotifier {
             syncError = "Błąd serwera przy synchronizacji leku ${med.name}.";
           }
         } catch (e) {
-          // Brak internetu sygnalizuje globalny pasek offline – nie dublujemy komunikatu.
+          // Brak internetu sygnalizuje globalny pasek offline, nie dublujemy komunikatu.
           break;
         }
       }
@@ -123,14 +123,14 @@ class DashboardViewModel extends ChangeNotifier {
             await DatabaseHelper.instance.deleteMedicationById(med.id!);
           }
         } catch (e) {
-          break; // wciąż offline – spróbujemy następnym razem
+          break; // wciąż offline, spróbujemy następnym razem
         }
       }
 
       final unsyncedHistory = await DatabaseHelper.instance.getUnsyncedHistory();
       for (var item in unsyncedHistory) {
         try {
-          // Musimy przetłumaczyć nasze lokalne ID na API_ID dla Przemka
+          // Tłumaczymy lokalne ID na api_id przed wysłaniem.
           final localMed = await DatabaseHelper.instance.getMedicationById(item.medicationId);
           if (localMed == null || localMed.apiId == null) continue; // Lek nie zdążył się zsynchronizować
 
@@ -145,7 +145,7 @@ class DashboardViewModel extends ChangeNotifier {
             syncError = "Błąd serwera przy synchronizacji historii.";
           }
         } catch (e) {
-          // Brak internetu sygnalizuje globalny pasek offline – nie dublujemy komunikatu.
+          // Brak internetu sygnalizuje globalny pasek offline, nie dublujemy komunikatu.
           break;
         }
       }
@@ -160,7 +160,7 @@ class DashboardViewModel extends ChangeNotifier {
             await DatabaseHelper.instance.deleteHistoryItemById(item.id!);
           }
         } catch (e) {
-          break; // wciąż offline – spróbujemy następnym razem
+          break; // wciąż offline, spróbujemy następnym razem
         }
       }
 
@@ -234,7 +234,7 @@ class DashboardViewModel extends ChangeNotifier {
 
       for (var item in historyItems) {
         if (item.apiId != null && item.apiId != -1) {
-          // Wpis jest na serwerze – próbujemy usunąć go również tam.
+          // Wpis jest na serwerze, próbujemy usunąć go również tam.
           try {
             final response = await _apiService.deleteHistory(item.apiId!);
             if (response.statusCode == 200 || response.statusCode == 204) {
@@ -248,7 +248,7 @@ class DashboardViewModel extends ChangeNotifier {
             await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
           }
         } else {
-          // Wpis nigdy nie trafił na serwer – wystarczy ukryć go lokalnie.
+          // Wpis nigdy nie trafił na serwer, wystarczy ukryć go lokalnie.
           await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
         }
       }
@@ -276,7 +276,7 @@ class DashboardViewModel extends ChangeNotifier {
       final medsToDelete = await DatabaseHelper.instance.getMedicationGroup(name, dosage, time);
       for (var med in medsToDelete) {
         if (med.apiId != null && med.apiId != -1) {
-          // Lek jest na serwerze – próbujemy usunąć go również tam.
+          // Lek jest na serwerze, próbujemy usunąć go również tam.
           try {
             final response = await _apiService.deleteMedication(med.apiId!);
             if (response.statusCode == 200 || response.statusCode == 204) {
@@ -290,7 +290,7 @@ class DashboardViewModel extends ChangeNotifier {
             await DatabaseHelper.instance.markMedicationPendingDelete(med.id!);
           }
         } else {
-          // Lek nigdy nie trafił na serwer – usuwamy go lokalnie od razu.
+          // Lek nigdy nie trafił na serwer, usuwamy go lokalnie od razu.
           await DatabaseHelper.instance.deleteMedicationById(med.id!);
         }
       }
