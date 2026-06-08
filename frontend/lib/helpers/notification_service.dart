@@ -14,29 +14,33 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Europe/Warsaw'));
 
-    // POPRAWKA 1: System szuka teraz nowej ikony z generatora
+    // Używamy głównej ikony aplikacji, żeby uniknąć wywalania powiadomień
     const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
 
+    // POPRAWKA: Przywrócone "settings:"
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
         // Tu zrobimy przekierowanie po kliknięciu
       },
     );
+
+    // Od razu przy starcie apki wymuszamy okienka z prośbą o zgody!
+    await requestPermissions();
   }
 
   Future<void> requestPermissions() async {
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+      await androidImplementation.requestExactAlarmsPermission();
+    }
   }
 
   Future<void> scheduleMedicationNotification({
@@ -54,8 +58,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       enableVibration: true,
-      // POPRAWKA 2: Tutaj również nowa ikona
-      icon: '@drawable/ic_notification',
+      icon: '@mipmap/ic_launcher',
       color: Color(0xFF007AFF),
     );
 
@@ -76,6 +79,7 @@ class NotificationService {
 
       final uniqueId = int.parse('$id$day');
 
+      // POPRAWKA: Przywrócone "id:", "title:", "body:" itd.
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id: uniqueId,
         title: title,

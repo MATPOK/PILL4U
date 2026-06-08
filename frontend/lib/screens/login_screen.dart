@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,12 +17,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool acceptTerms = false;
   bool isLoading = false;
 
+  // Zmienne do kontrolowania widoczności hasła
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
   Future<void> _submit() async {
+    // ... [Reszta logiki _submit pozostaje bez zmian] ...
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
     final name = _nameController.text.trim();
@@ -127,14 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ✅ POPRAWKA: canLaunchUrl przed launchUrl
   Future<void> _launchPrivacyPolicy() async {
     final Uri url = Uri.parse('https://pill4u.onrender.com/privacy');
-    if (!await canLaunchUrl(url)) {
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       _showError('Nie można otworzyć linku.');
-      return;
     }
-    await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -179,9 +181,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Twój osobisty asystent lekowy',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
+                        'Twój osobisty asystent lekowy',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant)
                     ),
                     const SizedBox(height: 48),
 
@@ -222,9 +224,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         hintText: isLogin ? '••••••••' : 'Min. 8 znaków, litera i cyfra',
                         prefixIcon: Icon(Icons.lock_outline, color: isDark ? Colors.grey : null),
+                        // DODANO: Ikonka do pokazywania/ukrywania hasła
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: isDark ? Colors.grey : Colors.grey.shade600,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      obscureText: true,
+                      obscureText: !_isPasswordVisible, // ZMIANA: kontrola ukrywania tekstu
                     ),
                     const SizedBox(height: 16),
 
@@ -237,9 +251,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           hintText: 'Powtórz hasło',
                           prefixIcon: Icon(Icons.lock_reset_outlined, color: isDark ? Colors.grey : null),
+                          // DODANO: Ikonka do pokazywania/ukrywania potwierdzenia hasła
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              color: isDark ? Colors.grey : Colors.grey.shade600,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                              });
+                            },
+                          ),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        obscureText: true,
+                        obscureText: !_isConfirmPasswordVisible, // ZMIANA: kontrola ukrywania tekstu
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -249,10 +275,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             activeColor: colorScheme.primary,
                             onChanged: (val) => setState(() => acceptTerms = val ?? false),
                           ),
-                          // ✅ POPRAWKA: GestureDetector z HitTestBehavior.opaque
                           Expanded(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
+                            child: InkWell(
                               onTap: _launchPrivacyPolicy,
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -290,6 +314,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         isLogin = !isLogin;
                         _passwordController.clear();
                         _confirmPasswordController.clear();
+                        _isPasswordVisible = false; // Resetujemy stan widoczności przy zmianie zakładki
+                        _isConfirmPasswordVisible = false;
                       }),
                       child: Text(
                         isLogin ? 'Nie masz konta? Zarejestruj się' : 'Masz już konto? Zaloguj się',
