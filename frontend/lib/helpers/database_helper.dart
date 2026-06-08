@@ -115,7 +115,7 @@ class DatabaseHelper {
     return maps.map((m) => Medication.fromJson(m)).toList();
   }
 
-  // Oznacza zsynchronizowany lek jako usunięty offline – znika z UI, czeka na usunięcie z serwera.
+  // Oznacza zsynchronizowany lek jako usunięty offline, znika z UI, czeka na usunięcie z serwera.
   Future<int> markMedicationPendingDelete(int localId) async {
     final db = await instance.database;
     return await db.update('medications', {'pending_delete': 1}, where: 'id = ?', whereArgs: [localId]);

@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     itemCount: _viewModel.medications.length,
                     itemBuilder: (context, index) {
                       final med = _viewModel.medications[index];
-                      // POPRAWKA: Pobieramy ZAWSZE lokalne ID jako nadrzędny klucz w UI, a API ID jako fallback.
+                      // Lokalne ID jako klucz w UI, api_id jako fallback.
                       // Dzięki temu w UI dwa duplikaty mają osobne tożsamości.
                       final int medId = med.id ?? med.apiId ?? index;
 

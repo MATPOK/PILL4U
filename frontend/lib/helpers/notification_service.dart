@@ -14,14 +14,13 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Europe/Warsaw'));
 
-    // Używamy głównej ikony aplikacji, żeby uniknąć wywalania powiadomień
+    // Domyślna ikona powiadomień.
     const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
 
-    // POPRAWKA: Przywrócone "settings:"
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
@@ -29,7 +28,7 @@ class NotificationService {
       },
     );
 
-    // Od razu przy starcie apki wymuszamy okienka z prośbą o zgody!
+    // Prośba o uprawnienia przy starcie.
     await requestPermissions();
   }
 
@@ -79,7 +78,6 @@ class NotificationService {
 
       final uniqueId = int.parse('$id$day');
 
-      // POPRAWKA: Przywrócone "id:", "title:", "body:" itd.
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id: uniqueId,
         title: title,

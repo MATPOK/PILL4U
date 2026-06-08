@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsController extends ChangeNotifier {
-  // Wzorzec Singleton - pozwala na dostęp do tych samych ustawień z każdego miejsca w apce
+  // Singleton - wspólne ustawienia dostępne w całej aplikacji.
   static final SettingsController _instance = SettingsController._internal();
   factory SettingsController() => _instance;
   SettingsController._internal();
@@ -26,7 +26,7 @@ class SettingsController extends ChangeNotifier {
     // Wczytywanie czcionki
     textScale = prefs.getDouble('text_scale') ?? 1.0;
 
-    notifyListeners(); // Odświeża całą apkę!
+    notifyListeners(); // odświeża całą aplikację
   }
 
   Future<void> updateThemeMode(ThemeMode newMode) async {

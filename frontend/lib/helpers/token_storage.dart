@@ -1,13 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Bezpieczne przechowywanie tokenu JWT.
-///
-/// Token trafia do szyfrowanego magazynu systemowego (Android Keystore /
-/// iOS Keychain) zamiast do `SharedPreferences` (plaintext). Klasa zawiera
-/// też jednorazową migrację starego tokenu zapisanego wcześniej w
-/// `SharedPreferences`, żeby zalogowani użytkownicy nie zostali wylogowani
-/// po aktualizacji aplikacji.
+// Przechowywanie tokenu JWT w szyfrowanym magazynie systemowym
+// (Android Keystore / iOS Keychain) z jednorazową migracją starego tokenu
+// z SharedPreferences.
 class TokenStorage {
   static const String _key = 'jwt_token';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
