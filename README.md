@@ -32,7 +32,7 @@ PILL4U/
 │   ├── index.js              # Endpointy + middleware JWT + CRON
 │   ├── db.js                 # Schemat bazy
 │   └── api.test.js           # Testy integracyjne (Jest + Supertest)
-└── docs/                     # Wymagania, makiety, polityka prywatności, ocena
+└── docs/                     # Wymagania, makiety, polityka prywatności
 ```
 
 **Przepływ offline-first:** akcje użytkownika (dodanie/wzięcie/cofnięcie/usunięcie leku) zapisują się natychmiast w lokalnej bazie SQLite. `DashboardViewModel` cyklicznie i po każdej akcji synchronizuje zmiany z serwerem: wysyła kolejkę niezsynchronizowanych wpisów (`api_id IS NULL`) oraz kolejkę usunięć (`pending_delete` / soft-delete historii), a następnie pobiera aktualny stan z serwera.
