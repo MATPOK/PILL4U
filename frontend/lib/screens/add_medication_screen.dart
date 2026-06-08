@@ -43,6 +43,26 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     );
   }
 
+  // POTĘŻNE OKNO DO WYŚWIETLANIA BŁĘDÓW KRYTYCZNYCH
+  void _showCrashDialog(String error, String stackTrace) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('BŁĄD KRYTYCZNY', style: TextStyle(color: Colors.red)),
+        content: SingleChildScrollView(
+          child: Text('Treść błędu:\n$error\n\nŚcieżka:\n$stackTrace'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Zrozumiałem'),
+          )
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final dosage = _dosageController.text.trim();
@@ -65,6 +85,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     setState(() { isLoading = true; });
 
     try {
+      print('LOG: Rozpoczynam zapis leku...');
       final String timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
       final List<String> orderedSelectedDays = _days.where((d) => _selectedDays.contains(d)).toList();
 
@@ -72,16 +93,25 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       final List<int> daysAsInts = orderedSelectedDays.map((d) => dayMapper[d]!).toList();
       final int baseNotificationId = DateTime.now().millisecondsSinceEpoch % 10000;
 
-      await NotificationService().scheduleMedicationNotification(
-        id: baseNotificationId,
-        title: 'Czas na lek: $name!',
-        body: 'Przypomnienie o wzięciu dawki: $dosage',
-        hour: _selectedTime.hour,
-        minute: _selectedTime.minute,
-        daysOfWeek: daysAsInts,
-      );
+      print('LOG: Próbuję ustawić powiadomienie...');
+      try {
+        await NotificationService().scheduleMedicationNotification(
+          id: baseNotificationId,
+          title: 'Czas na lek: $name!',
+          body: 'Przypomnienie o wzięciu dawki: $dosage',
+          hour: _selectedTime.hour,
+          minute: _selectedTime.minute,
+          daysOfWeek: daysAsInts,
+        );
+        print('LOG: Powiadomienie ustawione SUKCES.');
+      } catch (notifyError, notifyStack) {
+        print('LOG BŁĄD POWIADOMIENIA: $notifyError');
+        print('LOG STACK POWIADOMIENIA: $notifyStack');
+      }
 
+      print('LOG: Próbuję zapisać do bazy SQLite...');
       for (String day in orderedSelectedDays) {
+        print('LOG: Zapisuję dzień: $day');
         await DatabaseHelper.instance.insertSingleMedication({
           'name': name,
           'dosage': dosage,
@@ -89,6 +119,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           'days': day,
         });
       }
+      print('LOG: Zapis do SQLite SUKCES.');
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,8 +127,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       );
       Navigator.pop(context);
 
-    } catch (error) {
-      _showError('Wystąpił błąd krytyczny.');
+    } catch (error, stackTrace) {
+      print('LOG GŁÓWNY BŁĄD: $error');
+      print('LOG GŁÓWNY STACKTRACE: $stackTrace');
+
+      // Zamiast małego paska, wywali Ci pełne okno z informacją co się wyjebało
+      _showCrashDialog(error.toString(), stackTrace.toString());
+
     } finally {
       if (mounted) {
         setState(() { isLoading = false; });
@@ -115,8 +151,10 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -191,9 +229,9 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                         }
                       });
                     },
-                    selectedColor: theme.brightness == Brightness.light ? const Color(0xFFE9FBF0) : Colors.green.withValues(alpha: 0.3),
+                    selectedColor: isDark ? Colors.green.withValues(alpha: 0.3) : const Color(0xFFE9FBF0),
                     checkmarkColor: const Color(0xFF34C759),
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                     labelStyle: TextStyle(
                       color: isSelected ? const Color(0xFF34C759) : theme.colorScheme.onSurface,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
