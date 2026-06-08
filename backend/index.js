@@ -64,21 +64,16 @@ app.put('/api/medications/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Usuwanie leku wraz z powiązaną historią (Kaskadowe usuwanie)
+// USUWANIE LEKU (Bez usuwania historii - historia zostaje dla statystyk!)
 app.delete('/api/medications/:id', authenticateToken, (req, res) => {
     const medId = req.params.id;
     const userId = req.user.userId;
 
-    // Najpierw: usuń całą historię tego leku
-    db.run('DELETE FROM medication_history WHERE medicationId = ? AND userId = ?', [medId, userId], (err) => {
-        if (err) console.error("Błąd usuwania powiązanej historii:", err);
-
-        // Następnie: usuń sam lek z bazy
-        db.run('DELETE FROM medications WHERE id = ? AND userId = ?', [medId, userId], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Lek nie znaleziony.' });
-            res.json({ message: 'Lek i jego historia zostały usunięte.' });
-        });
+    const sql = 'DELETE FROM medications WHERE id = ? AND userId = ?';
+    db.run(sql, [medId, userId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono leku lub brak uprawnień.' });
+        res.json({ message: 'Lek został usunięty (dane historyczne zostały zachowane).' });
     });
 });
 
@@ -96,22 +91,21 @@ app.post('/api/register', async (req, res) => {
 
         // Zapis do bazy
         const sql = 'INSERT INTO users (email, password, name) VALUES (?, ?, ?)';
-                db.run(sql, [email, hashedPassword, name], function(err) {
-                    if (err) {
-                        if (err.message.includes('UNIQUE')) {
-                            return res.status(409).json({ error: 'Użytkownik o tym emailu już istnieje.' });
-                        }
-                        return res.status(500).json({ error: 'Błąd bazy danych.' });
-                    }
-                    res.status(201).json({ message: 'Rejestracja zakończona sukcesem!', userId: this.lastID });
-                });
+        db.run(sql, [email, hashedPassword, name], function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(409).json({ error: 'Użytkownik o tym emailu już istnieje.' });
+                }
+                return res.status(500).json({ error: 'Błąd bazy danych.' });
+            }
+            res.status(201).json({ message: 'Rejestracja zakończona sukcesem!', userId: this.lastID });
+        });
     } catch (error) {
         res.status(500).json({ error: 'Wystąpił błąd serwera.' });
     }
 });
 
 // LOGOWANIE (POST /api/login)
-
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -156,7 +150,7 @@ app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'privacy.html'));
 });
 
-//POBIERANIE HISTORII (GET /api/history)
+// POBIERANIE HISTORII (GET /api/history)
 app.get('/api/history', authenticateToken, (req, res) => {
     // Pobieramy historię i sortujemy od najnowszych wpisów (DESC)
     const sql = 'SELECT * FROM medication_history WHERE userId = ? ORDER BY takenAt DESC';
@@ -166,66 +160,62 @@ app.get('/api/history', authenticateToken, (req, res) => {
     });
 });
 
-    //DODAWANIE WPISU DO HISTORII (POST /api/history)
-    app.post('/api/history', authenticateToken, (req, res) => {
-        const { medicationId, medicationName, takenAt, status } = req.body;
+// DODAWANIE WPISU DO HISTORII (POST /api/history)
+app.post('/api/history', authenticateToken, (req, res) => {
+    const { medicationId, medicationName, takenAt, status } = req.body;
 
-        // Walidacja – upewniamy się, że status to TAKEN lub MISSED
-        if (!status || !['TAKEN', 'MISSED'].includes(status.toUpperCase())) {
-            return res.status(400).json({ error: "Status jest wymagany i musi wynosić 'TAKEN' lub 'MISSED'." });
-        }
+    // Walidacja – upewniamy się, że status to TAKEN lub MISSED
+    if (!status || !['TAKEN', 'MISSED'].includes(status.toUpperCase())) {
+        return res.status(400).json({ error: "Status jest wymagany i musi wynosić 'TAKEN' lub 'MISSED'." });
+    }
 
-        const time = takenAt || new Date().toISOString();
-        const sql = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
+    const time = takenAt || new Date().toISOString();
+    const sql = 'INSERT INTO medication_history (userId, medicationId, medicationName, takenAt, status) VALUES (?, ?, ?, ?, ?)';
 
-        db.run(sql, [req.user.userId, medicationId, medicationName, time, status.toUpperCase()], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ id: this.lastID, message: 'Wpis dodany do historii!' });
+    db.run(sql, [req.user.userId, medicationId, medicationName, time, status.toUpperCase()], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: this.lastID, message: 'Wpis dodany do historii!' });
+    });
+});
+
+// USUWANIE WPISU Z HISTORII (Cofanie akcji)
+app.delete('/api/history/:id', authenticateToken, (req, res) => {
+    const sql = 'DELETE FROM medication_history WHERE id = ? AND userId = ?';
+    db.run(sql, [req.params.id, req.user.userId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono wpisu w historii.' });
+        res.json({ message: 'Cofnięto wpis w historii.' });
+    });
+});
+
+// STATYSTYKI HISTORII (GET /api/history/stats)
+app.get('/api/history/stats', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT
+            SUM(CASE WHEN status = 'TAKEN' THEN 1 ELSE 0 END) as taken,
+            SUM(CASE WHEN status = 'MISSED' THEN 1 ELSE 0 END) as missed
+        FROM medication_history
+        WHERE userId = ?
+    `;
+
+    db.get(sql, [req.user.userId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const taken = row.taken || 0;
+        const missed = row.missed || 0;
+        const total = taken + missed;
+
+        // Liczymy skuteczność (jeśli brak wpisów, domyślnie dajemy 100%)
+        const effectiveness = total > 0 ? Math.round((taken / total) * 100) : 100;
+
+        // Zwracamy piękny, gotowy obiekt pod widok we Flutterze
+        res.json({
+            taken: taken,
+            missed: missed,
+            effectiveness: `${effectiveness}%`
         });
     });
-
-    // USUWANIE WPISU Z HISTORII (Cofanie akcji)
-    app.delete('/api/medications/:id', authenticateToken, (req, res) => {
-        const medId = req.params.id;
-        const userId = req.user.userId;
-
-        // Usuwamy wyłącznie sam lek z bazy
-        const sql = 'DELETE FROM medications WHERE id = ? AND userId = ?';
-        db.run(sql, [medId, userId], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono leku lub brak uprawnień.' });
-            res.json({ message: 'Lek został usunięty (dane historyczne zostały zachowane).' });
-        });
-    });
-
-    app.get('/api/history/stats', authenticateToken, (req, res) => {
-        const sql = `
-            SELECT
-                SUM(CASE WHEN status = 'TAKEN' THEN 1 ELSE 0 END) as taken,
-                SUM(CASE WHEN status = 'MISSED' THEN 1 ELSE 0 END) as missed
-            FROM medication_history
-            WHERE userId = ?
-        `;
-
-        db.get(sql, [req.user.userId], (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-
-            const taken = row.taken || 0;
-            const missed = row.missed || 0;
-            const total = taken + missed;
-
-            // Liczymy skuteczność (jeśli brak wpisów, domyślnie dajemy 100%)
-            const effectiveness = total > 0 ? Math.round((taken / total) * 100) : 100;
-
-            // Zwracamy piękny, gotowy obiekt pod widok we Flutterze
-            res.json({
-                taken: taken,
-                missed: missed,
-                effectiveness: `${effectiveness}%`
-            });
-        });
-    });
-
+});
 
 if (require.main === module) {
     // ==========================================
@@ -266,6 +256,7 @@ if (require.main === module) {
             });
         });
     });
+
     app.listen(PORT, () => {
         console.log(`Serwer PILL4U działa na porcie http://localhost:${PORT}`);
     });
