@@ -16,11 +16,12 @@ class HistoryEntry {
   });
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) {
+    bool isLocal = json.containsKey('api_id');
     return HistoryEntry(
-      id: json['id'],
-      apiId: json['api_id'] ?? json['id'], // API uses 'id', local DB uses 'api_id'
+      id: isLocal ? json['id'] : null,
+      apiId: isLocal ? json['api_id'] : json['id'],
       medicationId: json['medication_id'] ?? json['medicationId'],
-      medicationName: json['medication_name'] ?? json['medicationName'],
+      medicationName: json['medication_name'] ?? json['medicationName'] ?? 'Lek',
       status: json['status'],
       takenAt: json['taken_at'] ?? json['takenAt'],
     );
@@ -44,5 +45,16 @@ class HistoryEntry {
       'status': status,
       'takenAt': takenAt,
     };
+  }
+
+  HistoryEntry copyWith({int? medicationId}) {
+    return HistoryEntry(
+      id: id,
+      apiId: apiId,
+      medicationId: medicationId ?? this.medicationId,
+      medicationName: medicationName,
+      status: status,
+      takenAt: takenAt,
+    );
   }
 }

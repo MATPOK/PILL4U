@@ -16,13 +16,14 @@ class Medication {
   });
 
   factory Medication.fromJson(Map<String, dynamic> json) {
+    bool isLocal = json.containsKey('api_id');
     return Medication(
-      id: json['id'],
-      apiId: json['api_id'] ?? json['id'], // API uses 'id', local DB uses 'api_id'
-      name: json['name'],
-      dosage: json['dosage'],
-      time: json['time'],
-      days: json['days'],
+      id: isLocal ? json['id'] : null,
+      apiId: isLocal ? json['api_id'] : json['id'],
+      name: json['name'] ?? 'Lek',
+      dosage: json['dosage'] ?? '',
+      time: json['time'] ?? '00:00',
+      days: json['days'] ?? '',
     );
   }
 
@@ -37,7 +38,6 @@ class Medication {
     };
   }
 
-  // Helper for API requests which might expect different keys
   Map<String, dynamic> toApiJson() {
     return {
       'name': name,

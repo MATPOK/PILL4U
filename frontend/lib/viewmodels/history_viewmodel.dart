@@ -37,19 +37,27 @@ class HistoryViewModel extends ChangeNotifier {
   Future<void> fetchStats() async {
     isLoading = true;
     notifyListeners();
-    try {
-      final response = await _apiService.getHistoryStats();
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        takenCount = data['taken'] ?? 0;
-        missedCount = data['missed'] ?? 0;
-        effectiveness = data['effectiveness'] ?? "0%";
-        errorMessage = null;
-      } else {
-        errorMessage = "Nie udało się pobrać aktualnych statystyk z serwera.";
-      }
 
-      final allHistory = await DatabaseHelper.instance.getAllHistory();
+    try {
+      final allHistory =
+      await DatabaseHelper.instance.getAllHistory();
+
+      takenCount = allHistory
+          .where((h) => h.status == 'TAKEN')
+          .length;
+
+      missedCount = allHistory
+          .where((h) => h.status == 'MISSED')
+          .length;
+
+      final total = takenCount + missedCount;
+
+      effectiveness = total > 0
+          ? "${((takenCount / total) * 100).round()}%"
+          : "0%";
+
+      errorMessage = null;
+
 
       Map<int, int> takenPerDay = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};
       Map<int, int> missedPerDay = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};

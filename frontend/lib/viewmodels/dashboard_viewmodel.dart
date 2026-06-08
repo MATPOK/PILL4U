@@ -55,9 +55,23 @@ class DashboardViewModel extends ChangeNotifier {
 
     _takenMedIds.clear();
     _skippedMedIds.clear();
+
+    // Sprytnie sprawdzamy obydwa identyfikatory - z serwera i z telefonu
     for (var h in todayHistory) {
-      if (h.status == 'TAKEN') _takenMedIds.add(h.medicationId);
-      if (h.status == 'MISSED') _skippedMedIds.add(h.medicationId);
+      int idToMark = h.medicationId;
+      try {
+        final matchedMed = localMeds.firstWhere((m) => m.apiId == h.medicationId);
+        idToMark = matchedMed.id!;
+      } catch (_) {}
+
+      if (h.status == 'TAKEN') {
+        _takenMedIds.add(h.medicationId);
+        _takenMedIds.add(idToMark);
+      }
+      if (h.status == 'MISSED') {
+        _skippedMedIds.add(h.medicationId);
+        _skippedMedIds.add(idToMark);
+      }
     }
     notifyListeners();
   }
@@ -98,7 +112,12 @@ class DashboardViewModel extends ChangeNotifier {
       final unsyncedHistory = await DatabaseHelper.instance.getUnsyncedHistory();
       for (var item in unsyncedHistory) {
         try {
-          final response = await _apiService.postHistory(item);
+          // Musimy przetłumaczyć nasze lokalne ID na API_ID dla Przemka
+          final localMed = await DatabaseHelper.instance.getMedicationById(item.medicationId);
+          if (localMed == null || localMed.apiId == null) continue; // Lek nie zdążył się zsynchronizować
+
+          final apiHistoryItem = item.copyWith(medicationId: localMed.apiId);
+          final response = await _apiService.postHistory(apiHistoryItem);
           if (response.statusCode == 201 || response.statusCode == 200) {
             int newApiId = -1;
             final responseData = jsonDecode(response.body);
@@ -128,7 +147,6 @@ class DashboardViewModel extends ChangeNotifier {
       }
 
       await _loadLocalData();
-      // Jeśli udało się pobrać leki i historię (statusy 200 powyżej), a mieliśmy błąd połączenia, to czyścimy go.
       if (medsResponse.statusCode == 200 && historyResponse.statusCode == 200 && syncError != null && syncError!.contains("Brak połączenia")) {
         syncError = null;
       }
@@ -141,31 +159,39 @@ class DashboardViewModel extends ChangeNotifier {
   }
 
   Future<void> markAsTaken(int medId, String medName) async {
-    if (_takenMedIds.contains(medId) || _skippedMedIds.contains(medId)) return;
+    final med = medications.firstWhere((m) => m.id == medId || m.apiId == medId);
 
-    _takenMedIds.add(medId);
+    if (_takenMedIds.contains(med.id) || _skippedMedIds.contains(med.id)) return;
+
+    _takenMedIds.add(med.id!);
+    if (med.apiId != null) _takenMedIds.add(med.apiId!);
+
     notifyListeners();
     await DatabaseHelper.instance.insertHistoryItem(HistoryEntry(
-      medicationId: medId,
+      medicationId: med.id!, // Zapisujemy jako lokalne, tłumacz pole wyżej
       medicationName: medName,
       status: 'TAKEN',
       takenAt: DateTime.now().toIso8601String(),
     ));
-    fetchData();
+    await fetchData();
   }
 
   Future<void> markAsSkipped(int medId, String medName) async {
-    if (_takenMedIds.contains(medId) || _skippedMedIds.contains(medId)) return;
+    final med = medications.firstWhere((m) => m.id == medId || m.apiId == medId);
 
-    _skippedMedIds.add(medId);
+    if (_takenMedIds.contains(med.id) || _skippedMedIds.contains(med.id)) return;
+
+    _skippedMedIds.add(med.id!);
+    if (med.apiId != null) _skippedMedIds.add(med.apiId!);
+
     notifyListeners();
     await DatabaseHelper.instance.insertHistoryItem(HistoryEntry(
-      medicationId: medId,
+      medicationId: med.id!,
       medicationName: medName,
       status: 'MISSED',
       takenAt: DateTime.now().toIso8601String(),
     ));
-    fetchData();
+    await fetchData();
   }
 
   Future<void> undoMedicationStatus(int medId) async {
@@ -173,13 +199,15 @@ class DashboardViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final historyItems = await DatabaseHelper.instance.getTodayHistoryForMedId(medId);
+      final med = medications.firstWhere((m) => m.id == medId || m.apiId == medId);
+      final historyItems = await DatabaseHelper.instance.getTodayHistoryForMedIds(med.id!, med.apiId);
 
       for (var item in historyItems) {
         if (item.apiId != null && item.apiId != -1) {
           try {
             final response = await _apiService.deleteHistory(item.apiId!);
             if (response.statusCode != 200 && response.statusCode != 204) {
+              // Pokazujemy error, dopóki Przemek nie napisze backendu na ten endpoint!
               syncError = "Serwer odrzucił żądanie usunięcia wpisu.";
             }
           } catch (e) {
@@ -189,8 +217,11 @@ class DashboardViewModel extends ChangeNotifier {
         await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
       }
 
-      _takenMedIds.remove(medId);
-      _skippedMedIds.remove(medId);
+      _takenMedIds.remove(med.id);
+      if (med.apiId != null) _takenMedIds.remove(med.apiId);
+      _skippedMedIds.remove(med.id);
+      if (med.apiId != null) _skippedMedIds.remove(med.apiId);
+
       await fetchData();
     } catch (e) {
       syncError = "Wystąpił błąd krytyczny podczas cofania akcji.";
