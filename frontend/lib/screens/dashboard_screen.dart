@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
 import 'add_medication_screen.dart';
@@ -14,6 +15,23 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final DashboardViewModel _viewModel = DashboardViewModel();
   int _selectedIndex = 0;
+  Timer? _uiRefreshTimer; // Lokalny timer do odświeżania "Oczekiwania"
+
+  @override
+  void initState() {
+    super.initState();
+    // Odświeżamy UI (tylko sam zegarek) co 5 sekund
+    _uiRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _uiRefreshTimer?.cancel();
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   String _getFullWeekday(int weekday) {
     const days = ['', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
@@ -169,7 +187,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     itemCount: _viewModel.medications.length,
                     itemBuilder: (context, index) {
                       final med = _viewModel.medications[index];
-                      final int medId = med.apiId ?? med.id ?? index;
+                      // POPRAWKA: Pobieramy ZAWSZE lokalne ID jako nadrzędny klucz w UI, a API ID jako fallback.
+                      // Dzięki temu w UI dwa duplikaty mają osobne tożsamości.
+                      final int medId = med.id ?? med.apiId ?? index;
+
                       final String medName = med.name;
                       final String medDosage = med.dosage;
                       final String timeStr = med.time;
@@ -350,11 +371,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _viewModel.dispose();
-    super.dispose();
   }
 }

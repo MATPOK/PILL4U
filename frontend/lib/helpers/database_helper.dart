@@ -18,7 +18,6 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-
     return await openDatabase(
       path,
       version: 2,
@@ -38,7 +37,6 @@ class DatabaseHelper {
         days TEXT NOT NULL
       )
     ''');
-
     await db.execute('''
       CREATE TABLE history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,18 +76,12 @@ class DatabaseHelper {
     for (var med in apiMeds) {
       final List<Map<String, dynamic>> existing = await db.query(
         'medications',
-        where: 'api_id = ? OR (name = ? AND dosage = ? AND time = ? AND days = ?)',
-        whereArgs: [med.apiId, med.name, med.dosage, med.time, med.days],
+        where: 'name = ? AND dosage = ? AND time = ? AND days = ?',
+        whereArgs: [med.name, med.dosage, med.time, med.days],
       );
 
       if (existing.isEmpty) {
-        batch.insert('medications', {
-          'api_id': med.apiId,
-          'name': med.name,
-          'dosage': med.dosage,
-          'time': med.time,
-          'days': med.days,
-        });
+        batch.insert('medications', med.toJson());
       } else {
         if (existing.first['api_id'] == null && med.apiId != null) {
           batch.update(
@@ -110,14 +102,16 @@ class DatabaseHelper {
     return maps.map((m) => Medication.fromJson(m)).toList();
   }
 
+  Future<Medication?> getMedicationById(int id) async {
+    final db = await instance.database;
+    final maps = await db.query('medications', where: 'id = ?', whereArgs: [id]);
+    if (maps.isNotEmpty) return Medication.fromJson(maps.first);
+    return null;
+  }
+
   Future<int> updateApiId(int localId, int apiId) async {
     final db = await instance.database;
-    return await db.update(
-      'medications',
-      {'api_id': apiId},
-      where: 'id = ?',
-      whereArgs: [localId],
-    );
+    return await db.update('medications', {'api_id': apiId}, where: 'id = ?', whereArgs: [localId]);
   }
 
   Future<int> insertHistoryItem(HistoryEntry entry) async {
@@ -125,27 +119,20 @@ class DatabaseHelper {
     return await db.insert('history', entry.toJson());
   }
 
-  Future<List<HistoryEntry>> getTodayHistoryForMedId(int medId) async {
+  Future<List<HistoryEntry>> getTodayHistoryForMedIds(int localId, int? apiId) async {
     final db = await instance.database;
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-
     final maps = await db.query(
-        'history',
-        where: 'medication_id = ? AND taken_at LIKE ? AND status != ?',
-        whereArgs: [medId, '$todayStr%', 'DELETED'],
-        limit: 1
+      'history',
+      where: '(medication_id = ? OR medication_id = ?) AND taken_at LIKE ? AND status != ?',
+      whereArgs: [localId, apiId ?? -1, '$todayStr%', 'DELETED'],
     );
     return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
   Future<int> softDeleteHistoryItem(int historyId) async {
     final db = await instance.database;
-    return await db.update(
-        'history',
-        {'status': 'DELETED'},
-        where: 'id = ?',
-        whereArgs: [historyId]
-    );
+    return await db.update('history', {'status': 'DELETED'}, where: 'id = ?', whereArgs: [historyId]);
   }
 
   Future<List<HistoryEntry>> getUnsyncedHistory() async {
@@ -156,12 +143,7 @@ class DatabaseHelper {
 
   Future<int> updateHistoryApiId(int localId, int apiId) async {
     final db = await instance.database;
-    return await db.update(
-      'history',
-      {'api_id': apiId},
-      where: 'id = ?',
-      whereArgs: [localId],
-    );
+    return await db.update('history', {'api_id': apiId}, where: 'id = ?', whereArgs: [localId]);
   }
 
   Future<List<HistoryEntry>> getTodayHistory() async {
@@ -183,13 +165,11 @@ class DatabaseHelper {
 
     for (var h in apiHistory) {
       final dateStr = h.takenAt.substring(0, 10);
-
       final existing = await db.query(
         'history',
         where: '(api_id = ?) OR (medication_id = ? AND taken_at LIKE ? AND status = ?)',
         whereArgs: [h.apiId, h.medicationId, '$dateStr%', h.status],
       );
-
       final ghostShield = await db.query(
         'history',
         where: 'medication_id = ? AND taken_at LIKE ? AND status = ?',
