@@ -185,13 +185,16 @@ app.get('/api/history', authenticateToken, (req, res) => {
     });
 
     // USUWANIE WPISU Z HISTORII (Cofanie akcji)
-    app.delete('/api/history/:id', authenticateToken, (req, res) => {
-        // Usuwamy po ID wpisu, upewniając się, że należy do zalogowanego użytkownika
-        const sql = 'DELETE FROM medication_history WHERE id = ? AND userId = ?';
-        db.run(sql, [req.params.id, req.user.userId], function(err) {
+    app.delete('/api/medications/:id', authenticateToken, (req, res) => {
+        const medId = req.params.id;
+        const userId = req.user.userId;
+
+        // Usuwamy wyłącznie sam lek z bazy
+        const sql = 'DELETE FROM medications WHERE id = ? AND userId = ?';
+        db.run(sql, [medId, userId], function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono wpisu w historii.' });
-            res.json({ message: 'Cofnięto wpis w historii.' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Nie znaleziono leku lub brak uprawnień.' });
+            res.json({ message: 'Lek został usunięty (dane historyczne zostały zachowane).' });
         });
     });
 
