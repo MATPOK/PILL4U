@@ -80,4 +80,4 @@ cd frontend && flutter analyze && flutter test
 - **Przemysław Potoczny — Backend Developer:** REST API, schemat bazy, Swagger, testy integracyjne, CI.
 
 ## 📄 Dokumentacja
-Wymagania, makiety, polityka prywatności oraz raport oceny (`docs/OCENA_PROJEKTU.md`) znajdują się w folderze `/docs`.
+Wymagania, makiety, polityka prywatności znajdują się w folderze `/docs`.
