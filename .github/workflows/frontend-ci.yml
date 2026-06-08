@@ -1,0 +1,33 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [ "develop", "main" ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Pobranie kodu repozytorium
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja środowiska Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Instalacja zależności (flutter pub get)
+        run: flutter pub get
+
+      - name: Statyczna analiza kodu (flutter analyze)
+        run: flutter analyze
+
+      - name: Uruchomienie testów jednostkowych (flutter test)
+        run: flutter test

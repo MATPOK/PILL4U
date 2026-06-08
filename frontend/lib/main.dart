@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
 import 'screens/main_layout_screen.dart';
 import 'helpers/notification_service.dart';
 import 'helpers/settings_controller.dart'; // Dodany import
+import 'helpers/token_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,8 +11,7 @@ void main() async {
   await NotificationService().init();
   await SettingsController().loadSettings(); // Wczytywanie ustawień z pamięci
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('jwt_token');
+  final token = await TokenStorage.getToken();
 
   runApp(MyApp(isLoggedIn: token != null));
 }

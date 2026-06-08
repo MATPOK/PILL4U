@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
-import 'add_medication_screen.dart';
-import 'history_screen.dart';
-import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

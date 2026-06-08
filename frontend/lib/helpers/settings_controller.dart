@@ -15,9 +15,13 @@ class SettingsController extends ChangeNotifier {
 
     // Wczytywanie motywu
     final themeStr = prefs.getString('theme_mode') ?? 'system';
-    if (themeStr == 'light') themeMode = ThemeMode.light;
-    else if (themeStr == 'dark') themeMode = ThemeMode.dark;
-    else themeMode = ThemeMode.system;
+    if (themeStr == 'light') {
+      themeMode = ThemeMode.light;
+    } else if (themeStr == 'dark') {
+      themeMode = ThemeMode.dark;
+    } else {
+      themeMode = ThemeMode.system;
+    }
 
     // Wczytywanie czcionki
     textScale = prefs.getDouble('text_scale') ?? 1.0;

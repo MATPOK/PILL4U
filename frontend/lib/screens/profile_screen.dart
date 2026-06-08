@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
-import 'history_screen.dart';
-import 'add_medication_screen.dart';
 import 'login_screen.dart';
 import '../helpers/settings_controller.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -70,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: const Text('Zgodnie z ustawieniami telefonu', style: TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: const Text('Aplikacja dostosuje się do motywu systemu'),
                       value: isSystemTheme,
-                      activeColor: colorScheme.primary,
+                      activeThumbColor: colorScheme.primary,
                       onChanged: (value) {
                         settings.updateThemeMode(value ? ThemeMode.system : ThemeMode.light);
                       },
@@ -79,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: const Text('Wymuś tryb ciemny', style: TextStyle(fontWeight: FontWeight.w500)),
                       value: isDarkTheme,
-                      activeColor: colorScheme.primary,
+                      activeThumbColor: colorScheme.primary,
                       onChanged: isSystemTheme ? null : (value) {
                         settings.updateThemeMode(value ? ThemeMode.dark : ThemeMode.light);
                       },
@@ -140,7 +137,7 @@ class _FontButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: () => SettingsController().updateTextScale(scale),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? colorScheme.primary : colorScheme.surfaceVariant,
+        backgroundColor: isSelected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
         foregroundColor: isSelected ? Colors.white : colorScheme.onSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -1,12 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../helpers/database_helper.dart';
-import '../services/api_service.dart';
 import '../models/history_entry.dart';
 
 class HistoryViewModel extends ChangeNotifier {
-  final ApiService _apiService = ApiService();
-
   bool isLoading = true;
   int takenCount = 0;
   int missedCount = 0;

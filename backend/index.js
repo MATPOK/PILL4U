@@ -14,6 +14,11 @@ const PORT = process.env.PORT || 3000;
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Bezpiecznik: serwer nie powinien wstać bez skonfigurowanego sekretu JWT.
+if (!JWT_SECRET) {
+    throw new Error('Brak zmiennej JWT_SECRET. Skonfiguruj plik .env na podstawie .env.example.');
+}
+
 app.use(cors());
 app.use(express.json());
 
@@ -44,6 +49,12 @@ app.get('/api/medications', authenticateToken, (req, res) => {
 // DODAWANIE NOWEGO LEKU (POST /api/medications)
 app.post('/api/medications', authenticateToken, (req, res) => {
     const { name, dosage, time, days } = req.body;
+
+    // Walidacja: nazwa, dawka, godzina i dni są wymagane.
+    if (!name || !name.trim() || !dosage || !time || !days) {
+        return res.status(400).json({ error: 'Pola name, dosage, time i days są wymagane.' });
+    }
+
     const sql = 'INSERT INTO medications (userId, name, dosage, time, days) VALUES (?, ?, ?, ?, ?)';
 
     db.run(sql, [req.user.userId, name, dosage, time, days], function(err) {
