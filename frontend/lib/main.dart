@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/main_layout_screen.dart';
 import 'helpers/notification_service.dart';
 import 'helpers/settings_controller.dart'; // Dodany import
 
@@ -62,7 +63,7 @@ class _MyAppState extends State<MyApp> {
             );
           },
 
-          home: widget.isLoggedIn ? const DashboardScreen() : const LoginScreen(),
+          home: widget.isLoggedIn ? const MainLayoutScreen() : const LoginScreen(),
         );
       },
     );

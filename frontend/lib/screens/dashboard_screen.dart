@@ -14,7 +14,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final DashboardViewModel _viewModel = DashboardViewModel();
-  int _selectedIndex = 0;
   Timer? _uiRefreshTimer; // Lokalny timer do odświeżania "Oczekiwania"
 
   @override
@@ -333,38 +332,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                   ),
                 ),
-              ],
-            ),
-          ),
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
-            ),
-            child: BottomNavigationBar(
-              backgroundColor: theme.scaffoldBackgroundColor,
-              elevation: 0,
-              type: BottomNavigationBarType.fixed,
-              currentIndex: _selectedIndex,
-              selectedItemColor: const Color(0xFF007AFF),
-              unselectedItemColor: Colors.grey,
-              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
-              onTap: (index) {
-                if (index == 1) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
-                } else if (index == 2) {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddMedicationScreen())).then((_) => _viewModel.fetchData());
-                } else if (index == 3) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
-                } else {
-                  setState(() => _selectedIndex = index);
-                }
-              },
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.calendar_today, size: 28), label: 'Dziś'),
-                BottomNavigationBarItem(icon: Icon(Icons.bar_chart, size: 28), label: 'Historia'),
-                BottomNavigationBarItem(icon: Icon(Icons.add, size: 28), label: 'Dodaj'),
-                BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 28), label: 'Profil'),
               ],
             ),
           ),

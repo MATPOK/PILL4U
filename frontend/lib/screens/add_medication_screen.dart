@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../viewmodels/add_medication_viewmodel.dart';
+import 'main_layout_screen.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({super.key});
@@ -34,7 +35,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lek zapisany!'), backgroundColor: Colors.green),
       );
-      Navigator.pop(context);
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const MainLayoutScreen()),
+            (Route<dynamic> route) => false,
+      );
+
     } else {
       if (!mounted) return;
       _showError(result);

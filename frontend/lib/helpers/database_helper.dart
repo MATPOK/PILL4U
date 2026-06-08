@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -34,7 +34,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         dosage TEXT NOT NULL,
         time TEXT NOT NULL,
-        days TEXT NOT NULL
+        days TEXT NOT NULL,
+        pending_delete INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -50,17 +51,28 @@ class DatabaseHelper {
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('''
-        CREATE TABLE history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          api_id INTEGER,
-          medication_id INTEGER NOT NULL,
-          medication_name TEXT NOT NULL,
-          status TEXT NOT NULL,
-          taken_at TEXT NOT NULL
-        )
-      ''');
+    for (int i = oldVersion; i < newVersion; i++) {
+      switch (i) {
+        case 1:
+          await db.execute('''
+            CREATE TABLE history (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              api_id INTEGER,
+              medication_id INTEGER NOT NULL,
+              medication_name TEXT NOT NULL,
+              status TEXT NOT NULL,
+              taken_at TEXT NOT NULL
+            )
+          ''');
+          break;
+        case 2:
+        // Migracja v2 -> v3: kolejka leków usuniętych w trybie offline.
+          await db.execute('ALTER TABLE medications ADD COLUMN pending_delete INTEGER NOT NULL DEFAULT 0');
+          break;
+        case 3:
+        // Kolejne wersje...
+          break;
+      }
     }
   }
 
@@ -98,7 +110,27 @@ class DatabaseHelper {
 
   Future<List<Medication>> getMedications() async {
     final db = await instance.database;
-    final maps = await db.query('medications');
+    // Pomijamy leki oznaczone do usunięcia (czekają na synchronizację z serwerem).
+    final maps = await db.query('medications', where: 'pending_delete = 0');
+    return maps.map((m) => Medication.fromJson(m)).toList();
+  }
+
+  // Oznacza zsynchronizowany lek jako usunięty offline – znika z UI, czeka na usunięcie z serwera.
+  Future<int> markMedicationPendingDelete(int localId) async {
+    final db = await instance.database;
+    return await db.update('medications', {'pending_delete': 1}, where: 'id = ?', whereArgs: [localId]);
+  }
+
+  // Twarde usunięcie wiersza leku (gdy serwer już potwierdził usunięcie lub lek nigdy tam nie trafił).
+  Future<int> deleteMedicationById(int localId) async {
+    final db = await instance.database;
+    return await db.delete('medications', where: 'id = ?', whereArgs: [localId]);
+  }
+
+  // Leki czekające na dosłanie usunięcia do serwera.
+  Future<List<Medication>> getMedicationsPendingDelete() async {
+    final db = await instance.database;
+    final maps = await db.query('medications', where: 'pending_delete = 1');
     return maps.map((m) => Medication.fromJson(m)).toList();
   }
 
@@ -133,6 +165,19 @@ class DatabaseHelper {
   Future<int> softDeleteHistoryItem(int historyId) async {
     final db = await instance.database;
     return await db.update('history', {'status': 'DELETED'}, where: 'id = ?', whereArgs: [historyId]);
+  }
+
+  // Twarde usunięcie wpisu historii (gdy serwer już potwierdził usunięcie).
+  Future<int> deleteHistoryItemById(int historyId) async {
+    final db = await instance.database;
+    return await db.delete('history', where: 'id = ?', whereArgs: [historyId]);
+  }
+
+  // Wpisy cofnięte offline, które wciąż istnieją na serwerze i czekają na dosłanie usunięcia.
+  Future<List<HistoryEntry>> getHistoryPendingServerDelete() async {
+    final db = await instance.database;
+    final maps = await db.query('history', where: "status = 'DELETED' AND api_id > 0");
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
   Future<List<HistoryEntry>> getUnsyncedHistory() async {
