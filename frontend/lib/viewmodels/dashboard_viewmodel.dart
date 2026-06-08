@@ -104,8 +104,26 @@ class DashboardViewModel extends ChangeNotifier {
             syncError = "Błąd serwera przy synchronizacji leku ${med.name}.";
           }
         } catch (e) {
-          syncError = "Brak połączenia. Nie zsynchronizowano leku ${med.name}.";
+          // Brak internetu sygnalizuje globalny pasek offline – nie dublujemy komunikatu.
           break;
+        }
+      }
+
+      // Dosyłamy usunięcia leków zrobione w trybie offline.
+      final medsPendingDelete = await DatabaseHelper.instance.getMedicationsPendingDelete();
+      for (var med in medsPendingDelete) {
+        if (med.apiId == null || med.apiId == -1) {
+          await DatabaseHelper.instance.deleteMedicationById(med.id!);
+          continue;
+        }
+        try {
+          final response = await _apiService.deleteMedication(med.apiId!);
+          // 404 = leku już nie ma na serwerze, więc też traktujemy jako sukces.
+          if (response.statusCode == 200 || response.statusCode == 204 || response.statusCode == 404) {
+            await DatabaseHelper.instance.deleteMedicationById(med.id!);
+          }
+        } catch (e) {
+          break; // wciąż offline – spróbujemy następnym razem
         }
       }
 
@@ -127,8 +145,22 @@ class DashboardViewModel extends ChangeNotifier {
             syncError = "Błąd serwera przy synchronizacji historii.";
           }
         } catch (e) {
-          syncError = "Brak połączenia. Historia nie została w pełni zsynchronizowana.";
+          // Brak internetu sygnalizuje globalny pasek offline – nie dublujemy komunikatu.
           break;
+        }
+      }
+
+      // Dosyłamy cofnięcia wzięć/pominięć (usunięcia historii) zrobione w trybie offline.
+      final historyPendingDelete = await DatabaseHelper.instance.getHistoryPendingServerDelete();
+      for (var item in historyPendingDelete) {
+        try {
+          final response = await _apiService.deleteHistory(item.apiId!);
+          // 404 = wpisu już nie ma na serwerze, więc też traktujemy jako sukces.
+          if (response.statusCode == 200 || response.statusCode == 204 || response.statusCode == 404) {
+            await DatabaseHelper.instance.deleteHistoryItemById(item.id!);
+          }
+        } catch (e) {
+          break; // wciąż offline – spróbujemy następnym razem
         }
       }
 
@@ -147,11 +179,9 @@ class DashboardViewModel extends ChangeNotifier {
       }
 
       await _loadLocalData();
-      if (medsResponse.statusCode == 200 && historyResponse.statusCode == 200 && syncError != null && syncError!.contains("Brak połączenia")) {
-        syncError = null;
-      }
     } catch (e) {
-      syncError = "Brak połączenia z serwerem. Pracujesz w trybie offline.";
+      // Tryb offline jest już pokazywany globalnym paskiem w MainLayoutScreen,
+      // więc nie ustawiamy tu zduplikowanego banera o braku połączenia.
     } finally {
       isLoading = false;
       notifyListeners();
@@ -204,17 +234,23 @@ class DashboardViewModel extends ChangeNotifier {
 
       for (var item in historyItems) {
         if (item.apiId != null && item.apiId != -1) {
+          // Wpis jest na serwerze – próbujemy usunąć go również tam.
           try {
             final response = await _apiService.deleteHistory(item.apiId!);
-            if (response.statusCode != 200 && response.statusCode != 204) {
-              // Pokazujemy error, dopóki Przemek nie napisze backendu na ten endpoint!
+            if (response.statusCode == 200 || response.statusCode == 204) {
+              await DatabaseHelper.instance.deleteHistoryItemById(item.id!);
+            } else {
               syncError = "Serwer odrzucił żądanie usunięcia wpisu.";
+              await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
             }
           } catch (e) {
-            syncError = "Brak połączenia. Nie udało się usunąć wpisu z serwera.";
+            // Offline: chowamy wpis lokalnie i ponowimy usunięcie z serwera przy synchronizacji.
+            await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
           }
+        } else {
+          // Wpis nigdy nie trafił na serwer – wystarczy ukryć go lokalnie.
+          await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
         }
-        await DatabaseHelper.instance.softDeleteHistoryItem(item.id!);
       }
 
       _takenMedIds.remove(med.id);
@@ -240,18 +276,25 @@ class DashboardViewModel extends ChangeNotifier {
       final medsToDelete = await DatabaseHelper.instance.getMedicationGroup(name, dosage, time);
       for (var med in medsToDelete) {
         if (med.apiId != null && med.apiId != -1) {
+          // Lek jest na serwerze – próbujemy usunąć go również tam.
           try {
             final response = await _apiService.deleteMedication(med.apiId!);
-            if (response.statusCode != 200 && response.statusCode != 204) {
+            if (response.statusCode == 200 || response.statusCode == 204) {
+              await DatabaseHelper.instance.deleteMedicationById(med.id!);
+            } else {
               syncError = "Serwer odrzucił żądanie usunięcia leku.";
+              await DatabaseHelper.instance.markMedicationPendingDelete(med.id!);
             }
           } catch (e) {
-            syncError = "Brak połączenia. Nie udało się usunąć leku z serwera.";
+            // Offline: chowamy lek lokalnie i ponowimy usunięcie z serwera przy synchronizacji.
+            await DatabaseHelper.instance.markMedicationPendingDelete(med.id!);
           }
+        } else {
+          // Lek nigdy nie trafił na serwer – usuwamy go lokalnie od razu.
+          await DatabaseHelper.instance.deleteMedicationById(med.id!);
         }
       }
 
-      await DatabaseHelper.instance.deleteMedicationGroup(name, dosage, time);
       await fetchData();
     } catch (e) {
       syncError = "Wystąpił błąd krytyczny podczas usuwania leku.";

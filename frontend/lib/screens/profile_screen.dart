@@ -15,7 +15,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileViewModel _viewModel = ProfileViewModel();
-  final int _selectedIndex = 3;
 
   Future<void> _logout() async {
     await _viewModel.logout();
@@ -120,34 +119,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             }
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)))),
-        child: BottomNavigationBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: Colors.grey,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
-          onTap: (index) {
-            if (index == 0) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
-            } else if (index == 1) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
-            } else if (index == 2) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AddMedicationScreen()));
-            }
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today, size: 28), label: 'Dziś'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart, size: 28), label: 'Historia'),
-            BottomNavigationBarItem(icon: Icon(Icons.add, size: 28), label: 'Dodaj'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 28), label: 'Profil'),
-          ],
         ),
       ),
     );
