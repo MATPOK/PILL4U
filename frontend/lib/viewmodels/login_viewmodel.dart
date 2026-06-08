@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/token_storage.dart';
 import '../services/api_service.dart';
 
 class LoginViewModel extends ChangeNotifier {
@@ -88,8 +88,7 @@ class LoginViewModel extends ChangeNotifier {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (isLogin) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('jwt_token', responseData['token']);
+          await TokenStorage.saveToken(responseData['token']);
           return null; // Success login
         } else {
           isLogin = true;

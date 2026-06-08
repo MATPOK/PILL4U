@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/token_storage.dart';
 import '../models/medication.dart';
 import '../models/history_entry.dart';
 
@@ -8,8 +8,7 @@ class ApiService {
   static const String baseUrl = 'https://pill4u.onrender.com/api';
 
   Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('jwt_token');
+    return await TokenStorage.getToken();
   }
 
   Future<Map<String, String>> _getHeaders() async {
