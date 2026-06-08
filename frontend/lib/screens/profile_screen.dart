@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'add_medication_screen.dart';
 import 'login_screen.dart';
 import '../helpers/settings_controller.dart';
-import '../helpers/database_helper.dart';
+import '../viewmodels/profile_viewmodel.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,21 +14,12 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final ProfileViewModel _viewModel = ProfileViewModel();
   final int _selectedIndex = 3;
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // 1. Usuwamy dane sesji
-    await prefs.remove('jwt_token');
-    await prefs.remove('user_name');
-
-    // 2. Zerujemy bazę SQLite
-    await DatabaseHelper.instance.clearAllData();
-
+    await _viewModel.logout();
     if (!mounted) return;
-
-    // 3. Wyrzucamy na ekran logowania (kasując historię nawigacji)
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),

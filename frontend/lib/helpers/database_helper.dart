@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../models/medication.dart';
+import '../models/history_entry.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -64,12 +66,12 @@ class DatabaseHelper {
     }
   }
 
-  Future<int> insertSingleMedication(Map<String, dynamic> row) async {
+  Future<int> insertSingleMedication(Medication med) async {
     final db = await instance.database;
-    return await db.insert('medications', row);
+    return await db.insert('medications', med.toJson());
   }
 
-  Future<void> insertMedications(List<dynamic> apiMeds) async {
+  Future<void> insertMedications(List<Medication> apiMeds) async {
     final db = await instance.database;
     final Batch batch = db.batch();
 
@@ -77,22 +79,22 @@ class DatabaseHelper {
       final List<Map<String, dynamic>> existing = await db.query(
         'medications',
         where: 'api_id = ? OR (name = ? AND dosage = ? AND time = ? AND days = ?)',
-        whereArgs: [med['id'], med['name'], med['dosage'], med['time'], med['days']],
+        whereArgs: [med.apiId, med.name, med.dosage, med.time, med.days],
       );
 
       if (existing.isEmpty) {
         batch.insert('medications', {
-          'api_id': med['id'],
-          'name': med['name'],
-          'dosage': med['dosage'],
-          'time': med['time'],
-          'days': med['days'],
+          'api_id': med.apiId,
+          'name': med.name,
+          'dosage': med.dosage,
+          'time': med.time,
+          'days': med.days,
         });
       } else {
-        if (existing.first['api_id'] == null && med['id'] != null) {
+        if (existing.first['api_id'] == null && med.apiId != null) {
           batch.update(
             'medications',
-            {'api_id': med['id']},
+            {'api_id': med.apiId},
             where: 'id = ?',
             whereArgs: [existing.first['id']],
           );
@@ -102,9 +104,10 @@ class DatabaseHelper {
     await batch.commit(noResult: true);
   }
 
-  Future<List<Map<String, dynamic>>> getMedications() async {
+  Future<List<Medication>> getMedications() async {
     final db = await instance.database;
-    return await db.query('medications');
+    final maps = await db.query('medications');
+    return maps.map((m) => Medication.fromJson(m)).toList();
   }
 
   Future<int> updateApiId(int localId, int apiId) async {
@@ -117,25 +120,24 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> insertHistoryItem(Map<String, dynamic> row) async {
+  Future<int> insertHistoryItem(HistoryEntry entry) async {
     final db = await instance.database;
-    return await db.insert('history', row);
+    return await db.insert('history', entry.toJson());
   }
 
-  // --- POPRAWKA: Pobieranie historii dla konkretnego leku (po ID) na dany dzień ---
-  Future<List<Map<String, dynamic>>> getTodayHistoryForMedId(int medId) async {
+  Future<List<HistoryEntry>> getTodayHistoryForMedId(int medId) async {
     final db = await instance.database;
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
 
-    return await db.query(
+    final maps = await db.query(
         'history',
         where: 'medication_id = ? AND taken_at LIKE ? AND status != ?',
         whereArgs: [medId, '$todayStr%', 'DELETED'],
-        limit: 1 // Ograniczamy do 1, żeby cofnąć tylko ten konkretny kliknięty wpis!
+        limit: 1
     );
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
-  // Używamy Soft Delete (Tarcza przed serwerem)
   Future<int> softDeleteHistoryItem(int historyId) async {
     final db = await instance.database;
     return await db.update(
@@ -146,9 +148,10 @@ class DatabaseHelper {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getUnsyncedHistory() async {
+  Future<List<HistoryEntry>> getUnsyncedHistory() async {
     final db = await instance.database;
-    return await db.query('history', where: 'api_id IS NULL AND status != ?', whereArgs: ['DELETED']);
+    final maps = await db.query('history', where: 'api_id IS NULL AND status != ?', whereArgs: ['DELETED']);
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
   Future<int> updateHistoryApiId(int localId, int apiId) async {
@@ -161,44 +164,40 @@ class DatabaseHelper {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getTodayHistory() async {
+  Future<List<HistoryEntry>> getTodayHistory() async {
     final db = await instance.database;
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    return await db.query('history', where: 'taken_at LIKE ? AND status != ?', whereArgs: ['$todayStr%', 'DELETED']);
+    final maps = await db.query('history', where: 'taken_at LIKE ? AND status != ?', whereArgs: ['$todayStr%', 'DELETED']);
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getAllHistory() async {
+  Future<List<HistoryEntry>> getAllHistory() async {
     final db = await instance.database;
-    return await db.query('history', where: 'status != ?', whereArgs: ['DELETED']);
+    final maps = await db.query('history', where: 'status != ?', whereArgs: ['DELETED']);
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 
-  Future<void> syncHistoryFromServer(List<dynamic> apiHistory) async {
+  Future<void> syncHistoryFromServer(List<HistoryEntry> apiHistory) async {
     final db = await instance.database;
     final Batch batch = db.batch();
 
     for (var h in apiHistory) {
-      final dateStr = (h['takenAt'] ?? DateTime.now().toIso8601String()).substring(0, 10);
+      final dateStr = h.takenAt.substring(0, 10);
 
       final existing = await db.query(
         'history',
         where: '(api_id = ?) OR (medication_id = ? AND taken_at LIKE ? AND status = ?)',
-        whereArgs: [h['id'], h['medicationId'], '$dateStr%', h['status']],
+        whereArgs: [h.apiId, h.medicationId, '$dateStr%', h.status],
       );
 
       final ghostShield = await db.query(
         'history',
         where: 'medication_id = ? AND taken_at LIKE ? AND status = ?',
-        whereArgs: [h['medicationId'], '$dateStr%', 'DELETED'],
+        whereArgs: [h.medicationId, '$dateStr%', 'DELETED'],
       );
 
       if (existing.isEmpty && ghostShield.isEmpty) {
-        batch.insert('history', {
-          'api_id': h['id'] ?? -1,
-          'medication_id': h['medicationId'],
-          'medication_name': h['medicationName'] ?? 'Lek',
-          'status': h['status'],
-          'taken_at': h['takenAt'] ?? DateTime.now().toIso8601String(),
-        });
+        batch.insert('history', h.toJson());
       }
     }
     await batch.commit(noResult: true);
@@ -210,9 +209,10 @@ class DatabaseHelper {
     await db.delete('history');
   }
 
-  Future<List<Map<String, dynamic>>> getMedicationGroup(String name, String dosage, String time) async {
+  Future<List<Medication>> getMedicationGroup(String name, String dosage, String time) async {
     final db = await instance.database;
-    return await db.query('medications', where: 'name = ? AND dosage = ? AND time = ?', whereArgs: [name, dosage, time]);
+    final maps = await db.query('medications', where: 'name = ? AND dosage = ? AND time = ?', whereArgs: [name, dosage, time]);
+    return maps.map((m) => Medication.fromJson(m)).toList();
   }
 
   Future<int> deleteMedicationGroup(String name, String dosage, String time) async {
@@ -220,14 +220,14 @@ class DatabaseHelper {
     return await db.delete('medications', where: 'name = ? AND dosage = ? AND time = ?', whereArgs: [name, dosage, time]);
   }
 
-  // POBIERANIE HISTORII DLA KONKRETNEGO DNIA
-  Future<List<Map<String, dynamic>>> getHistoryForDate(String dateStr) async {
+  Future<List<HistoryEntry>> getHistoryForDate(String dateStr) async {
     final db = await instance.database;
-    return await db.query(
+    final maps = await db.query(
         'history',
         where: 'taken_at LIKE ? AND status != ?',
         whereArgs: ['$dateStr%', 'DELETED'],
         orderBy: 'taken_at DESC'
     );
+    return maps.map((m) => HistoryEntry.fromJson(m)).toList();
   }
 }
