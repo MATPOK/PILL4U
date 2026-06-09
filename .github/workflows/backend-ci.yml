@@ -1,0 +1,30 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [ "develop", "main" ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest # GitHub odpali darmowego Linuxa
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Pobranie kodu repozytorium
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja środowiska Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalacja pakietów (npm install)
+        run: npm install
+
+      - name: Uruchomienie testów API (Jest)
+        run: npm test

@@ -1,0 +1,226 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PILL4U API",
+    "version": "1.0.0",
+    "description": "Dokumentacja API dla aplikacji przypominającej o lekach PILL4U."
+  },
+  "servers": [
+    {
+      "url": "https://pill4u.onrender.com",
+      "description": "Serwer produkcyjny (Render)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Serwer lokalny"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/api/register": {
+      "post": {
+        "summary": "Rejestracja nowego użytkownika",
+        "tags": ["Autoryzacja"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" },
+                  "name": { "type": "string", "description": "Imię użytkownika" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Użytkownik zarejestrowany" },
+          "400": { "description": "Brak danych" },
+          "409": { "description": "Email zajęty" }
+        }
+      }
+    },
+    "/api/login": {
+      "post": {
+        "summary": "Logowanie użytkownika",
+        "tags": ["Autoryzacja"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Zwraca token JWT" },
+          "401": { "description": "Błędne dane" }
+        }
+      }
+    },
+    "/api/user/me": {
+      "get": {
+        "summary": "Pobiera profil zalogowanego użytkownika",
+        "tags": ["Autoryzacja"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Dane użytkownika (id, email, name)" },
+          "401": { "description": "Brak tokena" },
+          "404": { "description": "Nie znaleziono użytkownika" }
+        }
+      }
+    },
+    "/api/medications": {
+      "get": {
+        "summary": "Pobiera leki zalogowanego użytkownika",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Lista leków" },
+          "401": { "description": "Brak tokena" }
+        }
+      },
+      "post": {
+        "summary": "Dodaje nowy lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "dosage": { "type": "string" },
+                  "time": { "type": "string" },
+                  "days": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Lek dodany" }
+        }
+      }
+    },
+    "/api/medications/{id}": {
+      "put": {
+        "summary": "Edytuje istniejący lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "dosage": { "type": "string" },
+                  "time": { "type": "string" },
+                  "days": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Zaktualizowano" } }
+      },
+      "delete": {
+        "summary": "Usuwa lek",
+        "tags": ["Leki"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Usunięto" } }
+      }
+    },
+    "/api/history": {
+      "get": {
+        "summary": "Pobiera historię wziętych leków",
+        "tags": ["Historia"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Zwraca listę wpisów z historii" },
+          "401": { "description": "Brak tokena" }
+        }
+      },
+      "post": {
+        "summary": "Dodaje wpis o wzięciu leku do historii",
+        "tags": ["Historia"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "medicationId": { "type": "integer" },
+                  "medicationName": { "type": "string" },
+                  "takenAt": { "type": "string", "description": "Opcjonalnie: data w formacie ISO" },
+                  "status": { "type": "string", "example": "TAKEN", "description": "Wymagane: 'TAKEN' lub 'MISSED'" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Wpis dodany do historii" }
+        }
+      },
+      "/api/history/{id}": {
+        "delete": {
+          "summary": "Usuwa wpis z historii (Cofanie akcji)",
+          "tags": ["Historia"],
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": { "type": "integer" },
+              "description": "ID wpisu w historii"
+            }
+          ],
+          "responses": {
+            "200": { "description": "Wpis usunięty" },
+            "404": { "description": "Nie znaleziono wpisu" }
+          }
+        }
+      }
+    },
+    "/api/history/stats": {
+      "get": {
+        "summary": "Pobiera statystyki (Wzięte, Pominięte, Skuteczność) pod kafelki frontendu",
+        "tags": ["Historia"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Zwraca gotowe statystyki kontenerów" }
+        }
+      }
+    }
+  }
+}
